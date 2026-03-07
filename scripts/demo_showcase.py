@@ -135,7 +135,7 @@ def build_scenes(config: dict) -> list[Scene]:
         defaults[jaw(jid, "aperture")] = 120.0
         defaults[jaw(jid, "fld_mm")] = flds.get(jid, 400.0)
     for wid in wedge_ids:
-        defaults[wedge(wid, "enabled")] = 0.0  # 0 = off, 1 = on
+        defaults[wedge(wid, "enabled")] = 1.0  # always enabled
         defaults[wedge(wid, "lateral_offset_mm")] = 0.0
     for pid in prefilter_ids:
         defaults[pf(pid, "angle_deg")] = midpoints.get(segment_names[0], 45.0) if segment_names else 45.0
@@ -193,7 +193,6 @@ def build_scenes(config: dict) -> list[Scene]:
     for jid in jaw_ids:
         s5[jaw(jid, "aperture")] = 110.0
     for wid in wedge_ids:
-        s5[wedge(wid, "enabled")] = 0.0
         s5[wedge(wid, "lateral_offset_mm")] = 0.0
     scenes.append(Scene(
         name="Open — reposition",
