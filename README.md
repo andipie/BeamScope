@@ -120,36 +120,46 @@ Click the **data source dropdown** in the top bar and select **Simulation**. The
 
 ## Demo Simulation
 
-A ready-to-run demo is included — no external dependencies needed.
+A config-driven demo is included — reads the collimator JSON and auto-generates matching animation for all modules. No external dependencies needed (Python 3 stdlib only).
 
 ```bash
+# Default config (example-collimator.json)
 python3 scripts/demo_simulation.py
+
+# Quad-jaw config
+python3 scripts/demo_simulation.py --config configs/quad-jaw-v1.json
 ```
 
-This streams synthetic collimator motion to the bridge at 30 Hz. Each axis uses a sinusoidal base motion with a band-limited random walk, giving continuous, non-repetitive movement.
+Each axis uses a sinusoidal base motion with a band-limited random walk, giving continuous, non-repetitive movement at 30 Hz. Module IDs, FLD values, and constraint ranges are read directly from the config so they always stay in sync.
 
 **Start order:**
 1. `cd bridge && bun run start`
 2. `cd visualizer && bun run dev` → open browser
-3. Drag and drop `configs/example-collimator.json`
-4. `python3 scripts/demo_simulation.py`
-5. Switch browser dropdown to **Simulation**
+3. `python3 scripts/demo_simulation.py --config configs/example-collimator.json`
+4. Switch browser dropdown to **Simulation**
+
+The visualizer loads the matching config automatically when you use the `?config=` URL parameter:
+```
+http://localhost:5173?config=quad-jaw-v1.json
+```
 
 **CLI options:**
 
 ```
---host  127.0.0.1   Bridge UDP host (default: 127.0.0.1)
---port  5005        Bridge UDP port (default: 5005)
---rate  30          Update rate in Hz (default: 30)
+--config  configs/example-collimator.json   Collimator config JSON
+--host    127.0.0.1                         Bridge UDP host (default: 127.0.0.1)
+--port    5005                              Bridge UDP port (default: 5005)
+--rate    30                                Update rate in Hz (default: 30)
 ```
 
-**What the demo animates:**
-- `jaws_x` — symmetric aperture, 7-second sine + noise
-- `jaws_y` — symmetric aperture, 11-second sine + noise
-- `prefilter` — continuous rotation (20-second period)
-- `wedge_1` — lateral offset + random toggle on/off every 5–15 s
-- Global collimator rotation — slow drift ±15°
-- SID — subtle variation around 1000 mm
+**What the demo animates (per module type):**
+
+| Module type | Animation |
+|---|---|
+| `jaws_rect` / `jaws_square` / `jaws_asymmetric` | Symmetric aperture oscillation within constraint range |
+| `prefilter` | Continuous rotation (sinusoidal, ~20 s period) |
+| `wedge` | Lateral offset oscillation (always enabled) |
+| *global* | SID variation around 1000 mm, collimator rotation drift ±15° |
 
 ### Single test packet (no Python)
 
