@@ -136,8 +136,16 @@ async function main(): Promise<void> {
   });
 
   // --- Load default config ---
+  // Allow overriding the startup config via ?config=<name-or-path>, e.g.:
+  //   http://localhost:5173?config=quad-jaw-v1.json
+  //   http://localhost:5173?config=/configs/quad-jaw-v1.json
+  const configParam = new URLSearchParams(window.location.search).get("config");
+  const defaultConfigUrl = configParam
+    ? configParam.startsWith("/") ? configParam : `/configs/${configParam}`
+    : "/configs/example-collimator.json";
+
   try {
-    const config = await loadConfigFromUrl("/configs/example-collimator.json");
+    const config = await loadConfigFromUrl(defaultConfigUrl);
     stateStore.setConfig(config);
     sceneUpdater.onConfigLoaded(config);
     bevRenderer.onConfigLoaded(config);
