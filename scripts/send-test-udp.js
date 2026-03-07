@@ -24,13 +24,13 @@ const packet = {
       leaf1: -100.0,
       leaf2: 100.0,
       rotation_deg: 0.0,
-      fld_mm: 500.0,
+      fld_mm: 300.0,
     },
     jaws_y: {
       leaf1: -100.0,
       leaf2: 100.0,
       rotation_deg: 0.0,
-      fld_mm: 520.0,
+      fld_mm: 380.0,
     },
     wedge_1: {
       enabled: true,

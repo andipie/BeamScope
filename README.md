@@ -118,24 +118,49 @@ Click the **data source dropdown** in the top bar and select **Simulation**. The
 
 ---
 
-## Demo Simulation
+## Demo Scripts
 
-A config-driven demo is included — reads the collimator JSON and auto-generates matching animation for all modules. No external dependencies needed (Python 3 stdlib only).
+Two demo scripts are included — Python 3 standard library only, no pip install needed.
+
+### Showcase demo (recommended)
+
+Choreographed sequence simulating a realistic radiography workflow: field changes, format switches, wedge insertion, collimator rotation, and SID variation — all with smooth eased transitions.
 
 ```bash
-# Default config (example-collimator.json)
-python3 scripts/demo_simulation.py
-
-# Quad-jaw config
-python3 scripts/demo_simulation.py --config configs/quad-jaw-v1.json
+python3 scripts/demo_showcase.py
+python3 scripts/demo_showcase.py --config configs/quad-jaw-v1.json
 ```
 
-Each axis uses a sinusoidal base motion with a band-limited random walk, giving continuous, non-repetitive movement at 30 Hz. Module IDs, FLD values, and constraint ranges are read directly from the config so they always stay in sync.
+The showcase reads the collimator config, discovers modules, and builds a matching scene choreography automatically. Scenes loop endlessly with smooth cosine-eased transitions.
 
-**Start order:**
+| Scene | Action |
+|---|---|
+| Startup | Wide field open for positioning |
+| Collimate — thorax AP | Jaws close to diagnostic field size |
+| Wedge in | Wedge filter slides in with lateral offset |
+| Exposure — hold | All axes hold steady |
+| Open — reposition | Field opens, wedge retracts |
+| Format change | Prefilter rotates to next filter segment |
+| Tight collimation — abdomen | Small field with tight collimation |
+| Collimator rotation | 15° rotation while field holds |
+| Zoom — SID change | SID increases to 1100 mm |
+| Reset | Smooth return to starting state |
+
+### Simple demo (integration reference)
+
+Minimal example showing how to talk to the bridge — copy and adapt for your own simulation.
+
+```bash
+python3 scripts/demo_simple.py
+```
+
+~80 lines, no classes, no argparse — just a loop sending sine-wave-animated packets. Hardcoded for `example-collimator.json`.
+
+### Start order
+
 1. `cd bridge && bun run start`
 2. `cd visualizer && bun run dev` → open browser
-3. `python3 scripts/demo_simulation.py --config configs/example-collimator.json`
+3. `python3 scripts/demo_showcase.py`
 4. Switch browser dropdown to **Simulation**
 
 The visualizer loads the matching config automatically when you use the `?config=` URL parameter:
@@ -143,7 +168,7 @@ The visualizer loads the matching config automatically when you use the `?config
 http://localhost:5173?config=quad-jaw-v1.json
 ```
 
-**CLI options:**
+**CLI options** (demo_showcase.py):
 
 ```
 --config  configs/example-collimator.json   Collimator config JSON
@@ -151,15 +176,6 @@ http://localhost:5173?config=quad-jaw-v1.json
 --port    5005                              Bridge UDP port (default: 5005)
 --rate    30                                Update rate in Hz (default: 30)
 ```
-
-**What the demo animates (per module type):**
-
-| Module type | Animation |
-|---|---|
-| `jaws_rect` / `jaws_square` / `jaws_asymmetric` | Symmetric aperture oscillation within constraint range |
-| `prefilter` | Continuous rotation (sinusoidal, ~20 s period) |
-| `wedge` | Lateral offset oscillation (always enabled) |
-| *global* | SID variation around 1000 mm, collimator rotation drift ±15° |
 
 ### Single test packet (no Python)
 
