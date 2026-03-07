@@ -99,8 +99,9 @@ def fld_map(config: dict) -> dict[str, float]:
 
 def build_scenes(config: dict) -> list[Scene]:
     """
-    Create a sequence of scenes based on the loaded config.
-    Adapts to whatever modules are present.
+    Create a cinematic sequence of scenes based on the loaded config.
+    Designed for demo videos — short holds, overlapping movements,
+    realistic wedge positioning (off-center, angled).
     """
     by_type = module_ids_by_type(config)
     flds = fld_map(config)
@@ -126,7 +127,7 @@ def build_scenes(config: dict) -> list[Scene]:
     def pf(pid: str, param: str) -> str:
         return f"{pid}.{param}"
 
-    # --- Default state (wide open) ---
+    # --- Default state (wide open, wedge off-center) ---
     defaults: dict[str, float] = {
         "sid": 1000.0,
         "collimator_rotation_deg": 0.0,
@@ -136,7 +137,7 @@ def build_scenes(config: dict) -> list[Scene]:
         defaults[jaw(jid, "fld_mm")] = flds.get(jid, 400.0)
     for wid in wedge_ids:
         defaults[wedge(wid, "enabled")] = 1.0  # always enabled
-        defaults[wedge(wid, "lateral_offset_mm")] = 0.0
+        defaults[wedge(wid, "lateral_offset_mm")] = -18.0  # off-center — realistic
     for pid in prefilter_ids:
         defaults[pf(pid, "angle_deg")] = midpoints.get(segment_names[0], 45.0) if segment_names else 45.0
 
@@ -148,118 +149,146 @@ def build_scenes(config: dict) -> list[Scene]:
         t.update(overrides)
         return t
 
-    # --- Scene 1: Startup — wide field open ---
+    # --- Scene 1: Startup — wide field open, wedge off-center ---
     scenes.append(Scene(
-        name="Startup — wide field",
-        transition=0.0, hold=3.0,
+        name="Wide field — positioning",
+        transition=0.0, hold=1.5,
         targets=T(),
     ))
 
-    # --- Scene 2: Collimate — thorax AP ---
+    # --- Scene 2: Collimate thorax + wedge shifts simultaneously ---
     s2 = T()
     for i, jid in enumerate(jaw_ids):
-        s2[jaw(jid, "aperture")] = 65.0 + i * 10.0  # slightly different per jaw pair
+        s2[jaw(jid, "aperture")] = 70.0 - i * 12.0
+    if wedge_ids:
+        s2[wedge(wedge_ids[0], "lateral_offset_mm")] = 25.0
     scenes.append(Scene(
         name="Collimate — thorax AP",
-        transition=2.0, hold=2.5,
+        transition=1.5, hold=1.0,
         targets=s2,
     ))
 
-    # --- Scene 3: Wedge in ---
+    # --- Scene 3: Wedge repositions + subtle SID ---
+    s3 = dict(s2)
+    s3["sid"] = 1020.0
     if wedge_ids:
-        s3 = dict(s2)
-        wid0 = wedge_ids[0]
-        s3[wedge(wid0, "enabled")] = 1.0
-        s3[wedge(wid0, "lateral_offset_mm")] = 30.0
-        scenes.append(Scene(
-            name=f"Wedge in — compensation",
-            transition=1.5, hold=2.0,
-            targets=s3,
-        ))
-    else:
-        s3 = s2
-
-    # --- Scene 4: Exposure (hold) ---
-    s4 = dict(s3)
-    s4["sid"] = 1010.0  # subtle SID drift
+        s3[wedge(wedge_ids[0], "lateral_offset_mm")] = -35.0
     scenes.append(Scene(
-        name="Exposure — hold",
-        transition=0.5, hold=2.5,
+        name="Wedge reposition — lateral shift",
+        transition=1.0, hold=0.8,
+        targets=s3,
+    ))
+
+    # --- Scene 4: Tight field + collimator rotation (simultaneous) ---
+    s4 = dict(s3)
+    s4["collimator_rotation_deg"] = 12.0
+    for i, jid in enumerate(jaw_ids):
+        s4[jaw(jid, "aperture")] = 40.0 - i * 5.0
+    scenes.append(Scene(
+        name="Tight field + rotation 12°",
+        transition=1.5, hold=1.0,
         targets=s4,
     ))
 
-    # --- Scene 5: Open — reposition ---
-    s5 = T()
-    for jid in jaw_ids:
-        s5[jaw(jid, "aperture")] = 110.0
-    for wid in wedge_ids:
-        s5[wedge(wid, "lateral_offset_mm")] = 0.0
+    # --- Scene 5: Format change — prefilter rotates while jaws open ---
+    s5 = dict(s4)
+    if prefilter_ids and len(segment_names) >= 3:
+        pid0 = prefilter_ids[0]
+        target_seg = segment_names[2]
+        s5[pf(pid0, "angle_deg")] = midpoints[target_seg]
+    for i, jid in enumerate(jaw_ids):
+        s5[jaw(jid, "aperture")] = 85.0 - i * 8.0
+    s5["collimator_rotation_deg"] = 8.0
     scenes.append(Scene(
-        name="Open — reposition",
-        transition=1.5, hold=2.0,
+        name=f"Format — {segment_names[2] if len(segment_names) >= 3 else 'change'}",
+        transition=1.5, hold=0.8,
         targets=s5,
     ))
 
-    # --- Scene 6: Format change ---
-    if prefilter_ids and len(segment_names) >= 3:
-        s6 = dict(s5)
-        pid0 = prefilter_ids[0]
-        target_seg = segment_names[2]  # third segment (e.g., Cu 0.1mm)
-        s6[pf(pid0, "angle_deg")] = midpoints[target_seg]
-        scenes.append(Scene(
-            name=f"Format change — {target_seg}",
-            transition=2.0, hold=2.0,
-            targets=s6,
-        ))
-    else:
-        s6 = s5
+    # --- Scene 6: SID zoom + wedge follows ---
+    s6 = dict(s5)
+    s6["sid"] = 1100.0
+    for i, jid in enumerate(jaw_ids):
+        s6[jaw(jid, "aperture")] = 55.0 + i * 8.0
+    if wedge_ids:
+        s6[wedge(wedge_ids[0], "lateral_offset_mm")] = 15.0
+    scenes.append(Scene(
+        name="Zoom — SID 1100mm",
+        transition=1.8, hold=1.0,
+        targets=s6,
+    ))
 
-    # --- Scene 7: Tight collimation ---
+    # --- Scene 7: Fast collimate — shows system responsiveness ---
     s7 = dict(s6)
     for i, jid in enumerate(jaw_ids):
-        s7[jaw(jid, "aperture")] = 35.0 + i * 5.0
+        s7[jaw(jid, "aperture")] = 25.0 + i * 3.0
+    s7["collimator_rotation_deg"] = -5.0
     scenes.append(Scene(
-        name="Tight collimation — abdomen",
-        transition=1.5, hold=2.5,
+        name="Fast collimate — snap",
+        transition=0.6, hold=0.8,
         targets=s7,
     ))
 
-    # --- Scene 8: Collimator rotation ---
+    # --- Scene 8: Open + counter-rotate ---
     s8 = dict(s7)
-    s8["collimator_rotation_deg"] = 15.0
+    for i, jid in enumerate(jaw_ids):
+        s8[jaw(jid, "aperture")] = 100.0 + i * 10.0
+    s8["collimator_rotation_deg"] = -12.0
+    s8["sid"] = 1050.0
+    if wedge_ids:
+        s8[wedge(wedge_ids[0], "lateral_offset_mm")] = -28.0
     scenes.append(Scene(
-        name="Collimator rotation — 15°",
-        transition=2.0, hold=2.5,
+        name="Open + counter-rotate",
+        transition=1.2, hold=0.8,
         targets=s8,
     ))
 
-    # --- Scene 9: SID change (zoom) ---
+    # --- Scene 9: Second format change ---
     s9 = dict(s8)
-    s9["sid"] = 1100.0
+    if prefilter_ids and len(segment_names) >= 2:
+        pid0 = prefilter_ids[0]
+        target_seg = segment_names[1]
+        s9[pf(pid0, "angle_deg")] = midpoints[target_seg]
     for i, jid in enumerate(jaw_ids):
-        s9[jaw(jid, "aperture")] = 45.0 + i * 5.0  # slightly larger field
+        s9[jaw(jid, "aperture")] = 60.0 + i * 6.0
+    s9["collimator_rotation_deg"] = 0.0
     scenes.append(Scene(
-        name="Zoom — SID change to 1100mm",
-        transition=2.0, hold=2.0,
+        name=f"Format — {segment_names[1] if len(segment_names) >= 2 else 'change'}",
+        transition=1.5, hold=0.8,
         targets=s9,
     ))
 
-    # --- Scene 10: Second wedge (if available) ---
+    # --- Scene 10: Second wedge in (if available) + tight field ---
     if len(wedge_ids) >= 2:
         s10 = dict(s9)
         wid1 = wedge_ids[1]
-        s10[wedge(wid1, "enabled")] = 1.0
-        s10[wedge(wid1, "lateral_offset_mm")] = -20.0
+        s10[wedge(wid1, "lateral_offset_mm")] = -22.0
+        for i, jid in enumerate(jaw_ids):
+            s10[jaw(jid, "aperture")] = 45.0 - i * 5.0
         scenes.append(Scene(
-            name=f"Second wedge in — {wid1}",
-            transition=1.5, hold=2.0,
+            name=f"Second wedge — {wid1}",
+            transition=1.2, hold=0.8,
             targets=s10,
         ))
 
-    # --- Final: Reset — smooth return to start ---
+    # --- Scene 11: Dramatic close + rotation ---
+    s11 = T()
+    for i, jid in enumerate(jaw_ids):
+        s11[jaw(jid, "aperture")] = 15.0 + i * 3.0
+    s11["collimator_rotation_deg"] = 20.0
+    s11["sid"] = 1000.0
+    if wedge_ids:
+        s11[wedge(wedge_ids[0], "lateral_offset_mm")] = 40.0
+    scenes.append(Scene(
+        name="Min field + rotation 20°",
+        transition=1.5, hold=1.0,
+        targets=s11,
+    ))
+
+    # --- Final: Smooth return to start ---
     scenes.append(Scene(
         name="Reset — back to start",
-        transition=3.0, hold=1.5,
+        transition=2.5, hold=1.0,
         targets=T(),
     ))
 
