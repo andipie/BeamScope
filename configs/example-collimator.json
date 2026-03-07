@@ -1,0 +1,47 @@
+{
+  "collimator_id": "example-collimator-v1",
+  "description": "Example collimator with pre-filter, two rectangular jaw pairs (X/Y), and a wedge filter",
+  "primary_collimator": {
+    "shape": "rect",
+    "size": { "x": 300.0, "y": 300.0 },
+    "fld_mm": 80.0
+  },
+  "modules": [
+    {
+      "id": "prefilter",
+      "type": "prefilter",
+      "fld_mm": 150.0,
+      "thickness_mm": 10.0,
+      "segments": [
+        { "from_deg": 0,   "to_deg": 90,  "filter_value": "Al 1mm" },
+        { "from_deg": 90,  "to_deg": 180, "filter_value": "Al 2mm" },
+        { "from_deg": 180, "to_deg": 270, "filter_value": "Cu 0.1mm" },
+        { "from_deg": 270, "to_deg": 360, "filter_value": "open" }
+      ]
+    },
+    {
+      "id": "jaws_x",
+      "type": "jaws_rect",
+      "fld_mm": 300.0,
+      "thickness_mm": 80.0,
+      "rotation_deg": 0.0,
+      "constraints": { "min_mm": -150.0, "max_mm": 150.0 }
+    },
+    {
+      "id": "jaws_y",
+      "type": "jaws_rect",
+      "fld_mm": 380.0,
+      "thickness_mm": 80.0,
+      "rotation_deg": 90.0,
+      "constraints": { "min_mm": -150.0, "max_mm": 150.0 }
+    },
+    {
+      "id": "wedge_1",
+      "type": "wedge",
+      "fld_mm": 450.0,
+      "thickness_mm": 15.0,
+      "enabled": true,
+      "lateral_offset_mm": 0.0
+    }
+  ]
+}

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BeamScope</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        min-width: 1280px; /* US-11: minimum usable viewport width */
+        background: #0f0f0f;
+        color: #e0e0e0;
+        font-family: system-ui, sans-serif;
+        font-size: 13px;
+        overflow: hidden;
+      }
+
+      #app {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+
+      /* 3D view — left ~60% */
+      #panel-3d {
+        flex: 3;
+        position: relative;
+        overflow: hidden;
+      }
+
+      #panel-3d canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      /* CSS2DRenderer overlay (billboard labels) lives here */
+      #panel-3d .three-css2d-renderer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      /* BEV — right ~40% */
+      #panel-bev {
+        flex: 2;
+        position: relative;
+        border-left: 1px solid #2a2a2a;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      #panel-bev-header {
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #777;
+        border-bottom: 1px solid #2a2a2a;
+        flex-shrink: 0;
+      }
+
+      #bev-canvas {
+        flex: 1;
+        display: block;
+        width: 100%;
+      }
+
+      /* Control panel overlay — top-left of 3D panel */
+      #control-panel {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 10;
+        background: rgba(15, 15, 15, 0.88);
+        border: 1px solid #2a2a2a;
+        border-radius: 6px;
+        padding: 10px 12px;
+        min-width: 200px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        backdrop-filter: blur(4px);
+      }
+
+      #control-panel h1 {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: #ccc;
+      }
+
+      #source-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      #source-row label {
+        font-size: 11px;
+        color: #888;
+        white-space: nowrap;
+      }
+
+      #source-select {
+        flex: 1;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        color: #e0e0e0;
+        border-radius: 4px;
+        padding: 3px 6px;
+        font-size: 12px;
+      }
+
+      #status-badge {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: #1e3a1e;
+        color: #4caf50;
+        border: 1px solid #2e5a2e;
+      }
+
+      #status-badge.disconnected {
+        background: #3a1e1e;
+        color: #ef5350;
+        border-color: #5a2e2e;
+      }
+
+      #status-badge.waiting {
+        background: #2a2a1e;
+        color: #ffd54f;
+        border-color: #4a4a2e;
+      }
+
+      #status-badge.error {
+        background: #3a1e1e;
+        color: #ef5350;
+        border-color: #5a2e2e;
+      }
+
+      #latency-display {
+        font-size: 11px;
+        color: #666;
+        display: none;
+      }
+
+      #reset-view-btn {
+        background: #1e1e1e;
+        border: 1px solid #333;
+        color: #aaa;
+        border-radius: 4px;
+        padding: 3px 8px;
+        font-size: 11px;
+        cursor: pointer;
+        align-self: flex-start;
+      }
+
+      #reset-view-btn:hover {
+        background: #2a2a2a;
+        border-color: #555;
+        color: #e0e0e0;
+      }
+
+      /* Config drop zone hint */
+      #drop-hint {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        font-size: 11px;
+        color: #555;
+        pointer-events: none;
+      }
+
+      /* Jaw leaf label (CSS2DObject) — US-20 */
+      .jaw-leaf-label {
+        background: rgba(15, 15, 15, 0.85);
+        color: #e0e0e0;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 1px 5px;
+        border-radius: 3px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        pointer-events: none;
+        white-space: nowrap;
+        transform: translateX(-50%);
+      }
+
+      /* BEV Legend (US-21) */
+      #bev-legend {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        z-index: 10;
+        background: rgba(15, 15, 15, 0.88);
+        border: 1px solid #2a2a2a;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 10px;
+        backdrop-filter: blur(4px);
+      }
+
+      .bev-legend-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        color: #888;
+        font-weight: 600;
+      }
+
+      .bev-legend-toggle {
+        background: none;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        font-size: 10px;
+        padding: 0 2px;
+      }
+
+      .bev-legend-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-top: 4px;
+      }
+
+      .bev-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: #ccc;
+      }
+
+      .bev-legend-swatch {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+
+      /* Per-segment labels on the filter wheel (CSS2DObject, rotate with disk) */
+      .prefilter-segment-label {
+        background: rgba(15, 15, 15, 0.75);
+        color: #ddd;
+        font-size: 9px;
+        font-weight: 600;
+        padding: 1px 4px;
+        border-radius: 2px;
+        pointer-events: none;
+        white-space: nowrap;
+        transform: translateX(-50%);
+      }
+
+      /* Constraint violation warnings (US-16/17) */
+      #constraint-warnings {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .constraint-warning-item {
+        background: rgba(220, 40, 40, 0.2);
+        border: 1px solid rgba(220, 40, 40, 0.6);
+        border-radius: 3px;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #ef5350;
+        white-space: nowrap;
+      }
+
+      .constraint-violated {
+        border-color: #ef5350 !important;
+        box-shadow: 0 0 4px rgba(239, 83, 80, 0.5);
+      }
+
+      /* Constraint editor (editable min/max limits) */
+      #constraint-editor {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding-top: 4px;
+        border-top: 1px solid #2a2a2a;
+      }
+
+      .constraint-editor-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+      }
+
+      .constraint-editor-label {
+        color: #888;
+        min-width: 60px;
+      }
+
+      .constraint-input {
+        width: 60px;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        color: #e0e0e0;
+        border-radius: 3px;
+        padding: 2px 4px;
+        font-size: 11px;
+      }
+
+      /* Status badge: manual mode */
+      #status-badge.manual {
+        background: #1e2a3a;
+        color: #64b5f6;
+        border-color: #2e4a6a;
+      }
+
+      /* Manual controls container */
+      #manual-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 60vh;
+        overflow-y: auto;
+        padding-top: 4px;
+        border-top: 1px solid #2a2a2a;
+      }
+
+      #manual-controls:empty {
+        display: none;
+      }
+
+      /* Accordion sections */
+      #manual-controls details {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 4px;
+      }
+
+      #manual-controls summary {
+        font-size: 11px;
+        font-weight: 600;
+        color: #aaa;
+        padding: 4px 8px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      #manual-controls summary:hover {
+        color: #e0e0e0;
+      }
+
+      #manual-controls details[open] summary {
+        border-bottom: 1px solid #2a2a2a;
+      }
+
+      .module-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px 8px;
+      }
+
+      /* Slider + input rows */
+      .manual-control-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+      }
+
+      .manual-control-row label {
+        color: #888;
+        min-width: 62px;
+        white-space: nowrap;
+      }
+
+      .manual-control-row input[type="range"] {
+        flex: 1;
+        min-width: 50px;
+        accent-color: #4a9eff;
+      }
+
+      .manual-control-row input[type="number"] {
+        width: 56px;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        color: #e0e0e0;
+        border-radius: 3px;
+        padding: 2px 4px;
+        font-size: 11px;
+      }
+
+      .manual-control-row .control-unit {
+        color: #555;
+        font-size: 10px;
+        min-width: 18px;
+      }
+
+      .manual-control-row .readonly-value {
+        color: #ccc;
+        font-size: 11px;
+        font-style: italic;
+      }
+
+      /* Toggle rows */
+      .manual-control-row input[type="checkbox"] {
+        accent-color: #4a9eff;
+      }
+
+      /* Disabled state (simulation active) */
+      #manual-controls.disabled input,
+      #manual-controls.disabled select {
+        opacity: 0.4;
+        pointer-events: none;
+      }
+
+      #manual-controls.disabled summary {
+        color: #555;
+      }
+
+      /* Drag-over overlay */
+      body.drag-over::after {
+        content: "Drop collimator config (.json)";
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        font-weight: 600;
+        color: #fff;
+        background: rgba(0, 120, 255, 0.25);
+        border: 3px dashed rgba(0, 120, 255, 0.6);
+        z-index: 100;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <!-- 3D panel -->
+      <div id="panel-3d">
+        <!-- Control panel overlay -->
+        <div id="control-panel">
+          <h1>BeamScope</h1>
+          <div id="source-row">
+            <label for="source-select">Source</label>
+            <select id="source-select">
+              <option value="manual">Manual</option>
+              <option value="simulation">Simulation</option>
+            </select>
+          </div>
+          <span id="status-badge" class="waiting">Waiting…</span>
+          <span id="latency-display"></span>
+          <button id="reset-view-btn">Reset View</button>
+          <div id="constraint-warnings" style="display: none;"></div>
+          <div id="manual-controls"></div>
+        </div>
+
+        <span id="drop-hint">Drop a collimator .json file anywhere</span>
+      </div>
+
+      <!-- BEV panel -->
+      <div id="panel-bev">
+        <div id="panel-bev-header">Beam's Eye View</div>
+        <canvas id="bev-canvas"></canvas>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

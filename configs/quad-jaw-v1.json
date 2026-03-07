@@ -1,0 +1,52 @@
+{
+  "collimator_id": "quad-jaw-v1",
+  "description": "4-jaw square collimator: 6-segment prefilter, one jaws_square module (4 leaves at 0°/90°), and two wedge filters",
+  "primary_collimator": {
+    "shape": "circle",
+    "radius_mm": 130.0,
+    "size": { "x": 260.0, "y": 260.0 },
+    "fld_mm": 80.0
+  },
+  "modules": [
+    {
+      "id": "prefilter",
+      "type": "prefilter",
+      "fld_mm": 150.0,
+      "thickness_mm": 10.0,
+      "segments": [
+        { "from_deg":   0, "to_deg":  60, "filter_value": "open"      },
+        { "from_deg":  60, "to_deg": 120, "filter_value": "Al 1mm"    },
+        { "from_deg": 120, "to_deg": 180, "filter_value": "Al 2mm"    },
+        { "from_deg": 180, "to_deg": 240, "filter_value": "Al 3mm"    },
+        { "from_deg": 240, "to_deg": 300, "filter_value": "Cu 0.1mm"  },
+        { "from_deg": 300, "to_deg": 360, "filter_value": "Cu 0.2mm"  }
+      ]
+    },
+    {
+      "id": "jaws_sq",
+      "type": "jaws_square",
+      "fld_mm": 250.0,
+      "thickness_mm": 80.0,
+      "rotation_deg": 0.0,
+      "constraints": { "min_mm": -120.0, "max_mm": 120.0 }
+    },
+    {
+      "id": "wedge_a",
+      "type": "wedge",
+      "fld_mm": 350.0,
+      "thickness_mm": 15.0,
+      "rotation_deg": 0.0,
+      "enabled": true,
+      "lateral_offset_mm": 25.0
+    },
+    {
+      "id": "wedge_b",
+      "type": "wedge",
+      "fld_mm": 450.0,
+      "thickness_mm": 12.0,
+      "rotation_deg": 90.0,
+      "enabled": false,
+      "lateral_offset_mm": -18.0
+    }
+  ]
+}

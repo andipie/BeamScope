@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build output
+visualizer/dist/
+bridge/dist/
+
+# Lock files (keep bun.lock, ignore npm/yarn)
+package-lock.json
+yarn.lock
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+
+# Editor / IDE
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Claude Code
+.claude/
+memory/
+
+# Release artifacts (used for gh release create, not part of repo)
+.release-notes-*.md
+
+# Python
+__pycache__/
+*.pyc
+
+# Vitest coverage
+visualizer/coverage/
+
+# Logs
+*.log
+npm-debug.log*
