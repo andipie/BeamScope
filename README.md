@@ -34,7 +34,7 @@ The collimator is described as a JSON configuration file — any combination of 
 - **Rotating pre-filter wheel** — pie-slice segments with per-segment labels that spin with the disk; active segment highlighted by opacity
 - **Mechanical constraint detection** — end-stop violations and leaf crossing highlighted in real time (red + UI badge)
 - **Three switchable data sources** — live simulation (UDP), manual UI, *(replay mode planned)*
-- **Drag-and-drop config loading** — swap collimator configs at runtime without restarting
+- **Flexible config loading** — specify startup config via `?config=` URL parameter, or swap configs at runtime via drag and drop
 - **No client install required** — runs in any modern browser
 
 ---
@@ -94,7 +94,20 @@ Open **http://localhost:5173** in your browser.
 
 ### Load a collimator configuration
 
-Drag and drop one of the example configs from `configs/` onto the browser window:
+**Option 1 — URL parameter (startup):**
+
+Pass the config filename as a query parameter to load it directly on start:
+
+```
+http://localhost:5173?config=quad-jaw-v1.json
+http://localhost:5173?config=/configs/quad-jaw-v1.json
+```
+
+Bare filenames are resolved relative to `/configs/`. Without the parameter, `example-collimator.json` is loaded.
+
+**Option 2 — Drag and drop (runtime):**
+
+Drag any `.json` config file onto the browser window to swap configs without restarting:
 
 - `configs/example-collimator.json` — pre-filter + rectangular jaw pairs (X/Y) + wedge
 - `configs/quad-jaw-v1.json` — 6-segment pre-filter + 4-jaw square + two wedge filters + circular primary collimator
