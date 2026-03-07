@@ -137,7 +137,8 @@ def build_scenes(config: dict) -> list[Scene]:
         defaults[jaw(jid, "fld_mm")] = flds.get(jid, 400.0)
     for wid in wedge_ids:
         defaults[wedge(wid, "enabled")] = 1.0  # always enabled
-        defaults[wedge(wid, "lateral_offset_mm")] = -18.0  # off-center — realistic
+        defaults[wedge(wid, "lateral_offset_mm")] = -25.0  # off-center — realistic
+        defaults[wedge(wid, "rotation_deg")] = 12.0  # angled, not parallel to jaws
     for pid in prefilter_ids:
         defaults[pf(pid, "angle_deg")] = midpoints.get(segment_names[0], 45.0) if segment_names else 45.0
 
@@ -161,7 +162,8 @@ def build_scenes(config: dict) -> list[Scene]:
     for i, jid in enumerate(jaw_ids):
         s2[jaw(jid, "aperture")] = 70.0 - i * 12.0
     if wedge_ids:
-        s2[wedge(wedge_ids[0], "lateral_offset_mm")] = 25.0
+        s2[wedge(wedge_ids[0], "lateral_offset_mm")] = 32.0
+        s2[wedge(wedge_ids[0], "rotation_deg")] = -8.0
     scenes.append(Scene(
         name="Collimate — thorax AP",
         transition=1.5, hold=1.0,
@@ -172,7 +174,8 @@ def build_scenes(config: dict) -> list[Scene]:
     s3 = dict(s2)
     s3["sid"] = 1020.0
     if wedge_ids:
-        s3[wedge(wedge_ids[0], "lateral_offset_mm")] = -35.0
+        s3[wedge(wedge_ids[0], "lateral_offset_mm")] = -42.0
+        s3[wedge(wedge_ids[0], "rotation_deg")] = 18.0
     scenes.append(Scene(
         name="Wedge reposition — lateral shift",
         transition=1.0, hold=0.8,
@@ -211,7 +214,8 @@ def build_scenes(config: dict) -> list[Scene]:
     for i, jid in enumerate(jaw_ids):
         s6[jaw(jid, "aperture")] = 55.0 + i * 8.0
     if wedge_ids:
-        s6[wedge(wedge_ids[0], "lateral_offset_mm")] = 15.0
+        s6[wedge(wedge_ids[0], "lateral_offset_mm")] = 20.0
+        s6[wedge(wedge_ids[0], "rotation_deg")] = -15.0
     scenes.append(Scene(
         name="Zoom — SID 1100mm",
         transition=1.8, hold=1.0,
@@ -236,7 +240,8 @@ def build_scenes(config: dict) -> list[Scene]:
     s8["collimator_rotation_deg"] = -12.0
     s8["sid"] = 1050.0
     if wedge_ids:
-        s8[wedge(wedge_ids[0], "lateral_offset_mm")] = -28.0
+        s8[wedge(wedge_ids[0], "lateral_offset_mm")] = -35.0
+        s8[wedge(wedge_ids[0], "rotation_deg")] = 22.0
     scenes.append(Scene(
         name="Open + counter-rotate",
         transition=1.2, hold=0.8,
@@ -262,7 +267,8 @@ def build_scenes(config: dict) -> list[Scene]:
     if len(wedge_ids) >= 2:
         s10 = dict(s9)
         wid1 = wedge_ids[1]
-        s10[wedge(wid1, "lateral_offset_mm")] = -22.0
+        s10[wedge(wid1, "lateral_offset_mm")] = -30.0
+        s10[wedge(wid1, "rotation_deg")] = -10.0
         for i, jid in enumerate(jaw_ids):
             s10[jaw(jid, "aperture")] = 45.0 - i * 5.0
         scenes.append(Scene(
@@ -278,7 +284,8 @@ def build_scenes(config: dict) -> list[Scene]:
     s11["collimator_rotation_deg"] = 20.0
     s11["sid"] = 1000.0
     if wedge_ids:
-        s11[wedge(wedge_ids[0], "lateral_offset_mm")] = 40.0
+        s11[wedge(wedge_ids[0], "lateral_offset_mm")] = 45.0
+        s11[wedge(wedge_ids[0], "rotation_deg")] = -20.0
     scenes.append(Scene(
         name="Min field + rotation 20°",
         transition=1.5, hold=1.0,
@@ -351,7 +358,7 @@ def state_to_packet(state: dict[str, float], config: dict) -> dict:
                 modules[mod_id] = {
                     "enabled": state.get(f"{mod_id}.enabled", 0.0) >= 0.5,
                     "lateral_offset_mm": round(state.get(f"{mod_id}.lateral_offset_mm", 0.0), 2),
-                    "rotation_deg": 0.0,
+                    "rotation_deg": round(state.get(f"{mod_id}.rotation_deg", 0.0), 2),
                 }
 
     return {
@@ -394,7 +401,8 @@ def format_status(
             elif mod_type == "wedge":
                 en = state.get(f"{mod_id}.enabled", 0) >= 0.5
                 off = state.get(f"{mod_id}.lateral_offset_mm", 0)
-                parts.append(f"{mod_id}={'ON' if en else'--'} {off:+4.0f}")
+                rot = state.get(f"{mod_id}.rotation_deg", 0)
+                parts.append(f"{mod_id}={'ON' if en else'--'} {off:+4.0f} {rot:+3.0f}°")
 
     cr = state.get("collimator_rotation_deg", 0)
     parts.append(f"rot={cr:+4.0f}°")
