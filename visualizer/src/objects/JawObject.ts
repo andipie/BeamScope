@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import type { CollimatorState } from "../state/CollimatorState.js";
-import type { CollimatorConfig, ModuleConfig } from "../config/types.js";
+import type { CollimatorState } from "../core/state/CollimatorState.js";
+import type { CollimatorConfig, ModuleConfig } from "../core/config/types.js";
 import { leafColor, leafColorCSS } from "../utils/moduleColor.js";
 import type { LeafName } from "../utils/moduleColor.js";
 

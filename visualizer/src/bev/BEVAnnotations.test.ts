@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { isEdgeClippedByPC, mmToPixel, collectEdges } from "./BEVAnnotations.js";
-import { makeState, makeConfig, makeJawModule } from "../test-helpers.js";
+import { makeState, makeConfig, makeJawModule } from "../core/test-helpers.js";
 
 // ---------------------------------------------------------------------------
 // isEdgeClippedByPC

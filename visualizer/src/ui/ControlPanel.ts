@@ -1,5 +1,5 @@
-import type { DataSource } from "../state/DataSource.js";
-import type { ConnectionStatus } from "../datasources/SimulationSource.js";
+import type { DataSource } from "../core/state/DataSource.js";
+import type { ConnectionStatus } from "../core/datasources/SimulationSource.js";
 
 /**
  * Manages the data source dropdown and connection status badge in the UI.

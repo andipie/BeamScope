@@ -1,7 +1,7 @@
 import type * as THREE from "three";
-import type { CollimatorState } from "../state/CollimatorState.js";
-import type { CollimatorConfig } from "../config/types.js";
-import type { ConstraintViolation } from "../constraints/ConstraintChecker.js";
+import type { CollimatorState } from "../core/state/CollimatorState.js";
+import type { CollimatorConfig } from "../core/config/types.js";
+import type { ConstraintViolation } from "../core/constraints/ConstraintChecker.js";
 import { JawObject } from "../objects/JawObject.js";
 import { WedgeObject } from "../objects/WedgeObject.js";
 import { PrefilterObject } from "../objects/PrefilterObject.js";

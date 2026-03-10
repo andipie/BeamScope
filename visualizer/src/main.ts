@@ -3,12 +3,13 @@ import { SceneUpdater } from "./scene/SceneUpdater.js";
 import { BEVRenderer } from "./bev/BEVRenderer.js";
 import { ControlPanel } from "./ui/ControlPanel.js";
 import { ManualControls } from "./ui/ManualControls.js";
-import { SimulationSource } from "./datasources/SimulationSource.js";
-import { ManualSource } from "./datasources/ManualSource.js";
-import { stateStore } from "./state/StateStore.js";
-import { checkConstraints } from "./constraints/ConstraintChecker.js";
+import { SimulationSource } from "./core/datasources/SimulationSource.js";
+import { ManualSource } from "./core/datasources/ManualSource.js";
+import { stateStore } from "./core/state/StateStore.js";
+import { checkConstraints } from "./core/constraints/ConstraintChecker.js";
 import { ConstraintOverlay } from "./constraints/ConstraintOverlay.js";
-import { loadConfigFromUrl } from "./config/loader.js";
+import { loadConfigFromUrl } from "./core/config/loader.js";
+import { createNavBar } from "./ui/NavBar.js";
 
 /**
  * Application entry point.
@@ -25,6 +26,12 @@ import { loadConfigFromUrl } from "./config/loader.js";
  */
 
 async function main(): Promise<void> {
+  // --- NavBar ---
+  const app = document.getElementById("app");
+  if (app) {
+    app.insertBefore(createNavBar("visualization"), app.firstChild);
+  }
+
   // --- DOM references ---
   const panel3d = document.getElementById("panel-3d");
   const bevCanvas = document.getElementById("bev-canvas");
@@ -95,8 +102,8 @@ async function main(): Promise<void> {
     try {
       const config =
         source instanceof File
-          ? await (await import("./config/loader.js")).loadConfigFromFile(source)
-          : await (await import("./config/loader.js")).loadConfigFromUrl((source as Response).url);
+          ? await (await import("./core/config/loader.js")).loadConfigFromFile(source)
+          : await (await import("./core/config/loader.js")).loadConfigFromUrl((source as Response).url);
 
       stateStore.setConfig(config);
       sceneUpdater.onConfigLoaded(config);

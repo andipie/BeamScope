@@ -1,8 +1,8 @@
-import type { CollimatorConfig, ModuleConfig, ModuleType, PrefilterSegment } from "../config/types.js";
-import type { ManualSource } from "../datasources/ManualSource.js";
-import type { CollimatorState } from "../state/CollimatorState.js";
-import type { ConstraintViolation } from "../constraints/ConstraintChecker.js";
-import { stateStore } from "../state/StateStore.js";
+import type { CollimatorConfig, ModuleConfig, ModuleType, PrefilterSegment } from "../core/config/types.js";
+import type { ManualSource } from "../core/datasources/ManualSource.js";
+import type { CollimatorState } from "../core/state/CollimatorState.js";
+import type { ConstraintViolation } from "../core/constraints/ConstraintChecker.js";
+import { stateStore } from "../core/state/StateStore.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

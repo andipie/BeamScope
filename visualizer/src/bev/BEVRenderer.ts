@@ -1,10 +1,10 @@
-import type { CollimatorState } from "../state/CollimatorState.js";
-import type { CollimatorConfig } from "../config/types.js";
+import type { CollimatorState } from "../core/state/CollimatorState.js";
+import type { CollimatorConfig } from "../core/config/types.js";
 import { drawEdgeLines, drawEdgeLabels } from "./BEVAnnotations.js";
 import { BEVLegend } from "./BEVLegend.js";
-import { computeFieldRect, computePCProjection, computeRawJawField } from "../geometry/fieldRect.js";
-import { computeFieldPolygon } from "../geometry/fieldPolygon.js";
-import { projectToDetector } from "../geometry/projection.js";
+import { computeFieldRect, computePCProjection, computeRawJawField } from "../core/geometry/fieldRect.js";
+import { computeFieldPolygon } from "../core/geometry/fieldPolygon.js";
+import { projectToDetector } from "../core/geometry/projection.js";
 
 /** Convert degrees to radians (avoids importing Three.js into pure Canvas code). */
 function degToRad(deg: number): number {
