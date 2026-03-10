@@ -64,31 +64,207 @@
         border-bottom-color: #4a9eff;
       }
 
-      /* Scope content area */
+      /* Scope layout: sidebar + chart */
       #scope-content {
         flex: 1;
         display: flex;
-        flex-direction: column;
-        padding: 16px;
         overflow: hidden;
       }
 
-      #scope-status {
-        font-size: 12px;
-        color: #888;
-        margin-bottom: 8px;
+      /* Trace selector sidebar */
+      #trace-selector {
+        width: 220px;
+        flex-shrink: 0;
+        background: #1a1a1a;
+        border-right: 1px solid #2a2a2a;
+        overflow-y: auto;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
       }
 
-      #scope-chart-area {
-        flex: 1;
-        background: #1a1a1a;
+      #trace-selector details {
+        background: #151515;
         border: 1px solid #2a2a2a;
-        border-radius: 6px;
+        border-radius: 4px;
+      }
+
+      #trace-selector summary {
+        font-size: 11px;
+        font-weight: 600;
+        color: #aaa;
+        padding: 4px 8px;
+        cursor: pointer;
+        user-select: none;
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 6px;
+      }
+
+      #trace-selector summary:hover {
+        color: #e0e0e0;
+      }
+
+      #trace-selector details[open] summary {
+        border-bottom: 1px solid #2a2a2a;
+      }
+
+      .trace-btn-all,
+      .trace-btn-none {
+        background: #2a2a2a;
+        border: 1px solid #333;
+        color: #888;
+        border-radius: 3px;
+        padding: 0 4px;
+        font-size: 9px;
+        cursor: pointer;
+        line-height: 14px;
+      }
+
+      .trace-btn-all:hover,
+      .trace-btn-none:hover {
+        color: #e0e0e0;
+        background: #333;
+      }
+
+      .trace-list {
+        display: flex;
+        flex-direction: column;
+        padding: 4px 8px;
+        gap: 1px;
+      }
+
+      .trace-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        color: #ccc;
+        cursor: pointer;
+        padding: 1px 0;
+      }
+
+      .trace-item:hover {
+        color: #fff;
+      }
+
+      .trace-item input[type="checkbox"] {
+        accent-color: #4a9eff;
+        margin: 0;
+      }
+
+      .trace-swatch {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+
+      .trace-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .trace-unit {
         color: #555;
-        font-size: 14px;
+        font-size: 9px;
+        flex-shrink: 0;
+      }
+
+      .trace-derived {
+        opacity: 0.7;
+      }
+
+      /* Scope main area (toolbar + chart) */
+      #scope-main-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      #scope-toolbar {
+        height: 32px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 12px;
+        border-bottom: 1px solid #2a2a2a;
+        font-size: 11px;
+      }
+
+      #scope-toolbar label {
+        color: #888;
+      }
+
+      #scope-toolbar select {
+        background: #1e1e1e;
+        border: 1px solid #333;
+        color: #e0e0e0;
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-size: 11px;
+      }
+
+      #scope-status {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: #2a2a1e;
+        color: #ffd54f;
+        border: 1px solid #4a4a2e;
+      }
+
+      #scope-status.connected {
+        background: #1e3a1e;
+        color: #4caf50;
+        border-color: #2e5a2e;
+      }
+
+      #scope-status.disconnected {
+        background: #3a1e1e;
+        color: #ef5350;
+        border-color: #5a2e2e;
+      }
+
+      /* Chart area */
+      #scope-chart-area {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* uPlot dark theme overrides */
+      .u-wrap {
+        background: transparent !important;
+      }
+
+      .u-legend {
+        font-size: 10px !important;
+        color: #aaa !important;
+        background: rgba(15, 15, 15, 0.85) !important;
+        border: 1px solid #2a2a2a !important;
+        border-radius: 4px !important;
+        padding: 4px 8px !important;
+      }
+
+      .u-legend .u-series th {
+        color: #888 !important;
+        font-weight: 400 !important;
+      }
+
+      .u-legend .u-label {
+        font-size: 10px !important;
+      }
+
+      .u-cursor-x,
+      .u-cursor-y {
+        border-color: rgba(255, 255, 255, 0.3) !important;
       }
 
       /* Drag-over overlay */
@@ -113,8 +289,18 @@
     <div id="app">
       <!-- NavBar injected by scope-main.ts -->
       <div id="scope-content">
-        <div id="scope-status">Connecting...</div>
-        <div id="scope-chart-area">Chart will be rendered here (US-25)</div>
+        <div id="trace-selector"></div>
+        <div id="scope-main-area">
+          <div id="scope-toolbar">
+            <label for="scope-source-select">Source</label>
+            <select id="scope-source-select">
+              <option value="manual">Manual</option>
+              <option value="simulation">Simulation</option>
+            </select>
+            <span id="scope-status">Waiting...</span>
+          </div>
+          <div id="scope-chart-area"></div>
+        </div>
       </div>
     </div>
 
