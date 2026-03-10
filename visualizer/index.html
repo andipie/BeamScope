@@ -133,6 +133,8 @@
         border-radius: 6px;
         padding: 10px 12px;
         min-width: 200px;
+        max-height: calc(100% - 24px);
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -476,6 +478,87 @@
         color: #555;
       }
 
+      /* Axis Data Table (US-23) */
+      #axis-data-table {
+        border-top: 1px solid #2a2a2a;
+        padding-top: 4px;
+      }
+
+      #axis-data-table:empty {
+        display: none;
+      }
+
+      #axis-data-table details {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 4px;
+      }
+
+      #axis-data-table summary {
+        font-size: 11px;
+        font-weight: 600;
+        color: #aaa;
+        padding: 4px 8px;
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      #axis-data-table summary:hover {
+        color: #e0e0e0;
+      }
+
+      #axis-data-table details[open] summary {
+        border-bottom: 1px solid #2a2a2a;
+      }
+
+      .axis-badge {
+        background: #333;
+        color: #aaa;
+        font-size: 10px;
+        padding: 0 5px;
+        border-radius: 8px;
+        font-weight: 400;
+      }
+
+      .axis-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10px;
+      }
+
+      .axis-table th {
+        text-align: left;
+        padding: 3px 4px;
+        color: #666;
+        font-weight: 600;
+        border-bottom: 1px solid #2a2a2a;
+        white-space: nowrap;
+      }
+
+      .axis-table td {
+        padding: 2px 4px;
+        color: #ccc;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .axis-table tr.module-group-even td {
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .axis-table td[data-changed] {
+        color: #fff;
+        transition: color 0.3s ease;
+      }
+
+      .axis-table tr.constraint-violated td {
+        background: rgba(220, 40, 40, 0.15);
+        color: #ef5350;
+      }
+
       /* Drag-over overlay */
       body.drag-over::after {
         content: "Drop collimator config (.json)";
@@ -515,6 +598,7 @@
           <button id="reset-view-btn">Reset View</button>
           <div id="constraint-warnings" style="display: none;"></div>
           <div id="manual-controls"></div>
+          <div id="axis-data-table"></div>
         </div>
 
         <span id="drop-hint">Drop a collimator .json file anywhere</span>

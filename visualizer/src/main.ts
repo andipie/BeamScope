@@ -10,6 +10,7 @@ import { checkConstraints } from "./core/constraints/ConstraintChecker.js";
 import { ConstraintOverlay } from "./constraints/ConstraintOverlay.js";
 import { loadConfigFromUrl } from "./core/config/loader.js";
 import { createNavBar } from "./ui/NavBar.js";
+import { AxisDataTable } from "./ui/AxisDataTable.js";
 
 /**
  * Application entry point.
@@ -55,6 +56,7 @@ async function main(): Promise<void> {
   const constraintOverlay = new ConstraintOverlay();
   constraintOverlay.init(sceneUpdater);
   const manualControls = new ManualControls();
+  const axisDataTable = new AxisDataTable();
 
   // --- Data sources ---
   const manualSource = new ManualSource();
@@ -90,9 +92,12 @@ async function main(): Promise<void> {
     sceneUpdater.onStateUpdate(state, config);
     bevRenderer.render(state, config);
 
+    axisDataTable.update(state, config);
+
     const violations = checkConstraints(state, config);
     constraintOverlay.applyViolations(violations);
     manualControls.applyViolations(violations);
+    axisDataTable.applyViolations(violations);
 
     controlPanel.setLatency(state.timestamp > 0 ? Date.now() - state.timestamp : null);
   });
@@ -120,6 +125,8 @@ async function main(): Promise<void> {
         manualControls.render(manualControlsContainer, config, manualSource);
         constraintOverlay.renderConstraintEditor(manualControlsContainer, config);
       }
+      const axisContainer = document.getElementById("axis-data-table");
+      if (axisContainer) axisDataTable.buildFromConfig(axisContainer, config);
     } catch (err) {
       console.error("[main] Failed to load config:", err);
     }
@@ -163,6 +170,8 @@ async function main(): Promise<void> {
       manualControls.render(manualControlsContainer, config, manualSource);
       constraintOverlay.renderConstraintEditor(manualControlsContainer, config);
     }
+    const axisContainer = document.getElementById("axis-data-table");
+    if (axisContainer) axisDataTable.buildFromConfig(axisContainer, config);
   } catch {
     console.warn("[main] Default config not found — drag a collimator JSON to load one.");
   }
