@@ -79,4 +79,73 @@ describe("RingBuffer", () => {
     expect(data[2]).toEqual([0]);
     expect(data[3]).toEqual([0]);
   });
+
+  // --- resize tests ---
+
+  it("resize grow preserves all data", () => {
+    const buf = new RingBuffer({ capacity: 5, traceCount: 1 });
+    buf.append(1, [10]);
+    buf.append(2, [20]);
+    buf.append(3, [30]);
+
+    buf.resize(10);
+    expect(buf.capacity).toBe(10);
+    expect(buf.length).toBe(3);
+    const data = buf.getData();
+    expect(data[0]).toEqual([1, 2, 3]);
+    expect(data[1]).toEqual([10, 20, 30]);
+
+    // Can still append after resize
+    buf.append(4, [40]);
+    expect(buf.length).toBe(4);
+  });
+
+  it("resize shrink keeps only newest samples", () => {
+    const buf = new RingBuffer({ capacity: 10, traceCount: 1 });
+    for (let i = 1; i <= 8; i++) buf.append(i, [i * 10]);
+
+    buf.resize(3);
+    expect(buf.capacity).toBe(3);
+    expect(buf.length).toBe(3);
+    const data = buf.getData();
+    expect(data[0]).toEqual([6, 7, 8]);
+    expect(data[1]).toEqual([60, 70, 80]);
+  });
+
+  it("resize with wrap-around linearizes correctly", () => {
+    const buf = new RingBuffer({ capacity: 4, traceCount: 1 });
+    // Fill past capacity to create wrap-around (head at index 2)
+    for (let i = 1; i <= 6; i++) buf.append(i, [i * 10]);
+    expect(buf.length).toBe(4);
+
+    buf.resize(8);
+    expect(buf.length).toBe(4);
+    const data = buf.getData();
+    expect(data[0]).toEqual([3, 4, 5, 6]);
+    expect(data[1]).toEqual([30, 40, 50, 60]);
+  });
+
+  it("resize same capacity is no-op", () => {
+    const buf = new RingBuffer({ capacity: 5, traceCount: 1 });
+    buf.append(1, [10]);
+    buf.append(2, [20]);
+    buf.resize(5);
+    expect(buf.length).toBe(2);
+    expect(buf.getData()[0]).toEqual([1, 2]);
+  });
+
+  // --- memory + capacity ---
+
+  it("reports memory usage", () => {
+    const buf = new RingBuffer({ capacity: 100, traceCount: 3 });
+    // (1 timestamp + 3 traces) * 100 * 8 bytes = 3200
+    expect(buf.getMemoryBytes()).toBe(3200);
+  });
+
+  it("capacity getter returns current capacity", () => {
+    const buf = new RingBuffer({ capacity: 50, traceCount: 1 });
+    expect(buf.capacity).toBe(50);
+    buf.resize(200);
+    expect(buf.capacity).toBe(200);
+  });
 });
