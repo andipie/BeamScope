@@ -27,8 +27,48 @@
 
       #app {
         display: flex;
+        flex-direction: column;
         width: 100%;
         height: 100%;
+      }
+
+      /* NavBar */
+      #navbar {
+        display: flex;
+        gap: 0;
+        background: #1a1a1a;
+        border-bottom: 1px solid #2a2a2a;
+        height: 32px;
+        align-items: stretch;
+        flex-shrink: 0;
+      }
+
+      .nav-link {
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        color: #888;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        border-bottom: 2px solid transparent;
+      }
+
+      .nav-link:hover {
+        color: #ccc;
+        background: #222;
+      }
+
+      .nav-link.active {
+        color: #e0e0e0;
+        border-bottom-color: #4a9eff;
+      }
+
+      #app-content {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
         position: relative;
       }
 
@@ -456,6 +496,8 @@
   </head>
   <body>
     <div id="app">
+      <!-- NavBar injected by main.ts -->
+      <div id="app-content">
       <!-- 3D panel -->
       <div id="panel-3d">
         <!-- Control panel overlay -->
@@ -482,6 +524,7 @@
       <div id="panel-bev">
         <div id="panel-bev-header">Beam's Eye View</div>
         <canvas id="bev-canvas"></canvas>
+      </div>
       </div>
     </div>
 

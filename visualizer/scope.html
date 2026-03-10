@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BeamScope – Scope</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: #0f0f0f;
+        color: #e0e0e0;
+        font-family: system-ui, sans-serif;
+        font-size: 13px;
+        overflow: hidden;
+      }
+
+      #app {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* NavBar */
+      #navbar {
+        display: flex;
+        gap: 0;
+        background: #1a1a1a;
+        border-bottom: 1px solid #2a2a2a;
+        height: 32px;
+        align-items: stretch;
+        flex-shrink: 0;
+      }
+
+      .nav-link {
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        color: #888;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        border-bottom: 2px solid transparent;
+      }
+
+      .nav-link:hover {
+        color: #ccc;
+        background: #222;
+      }
+
+      .nav-link.active {
+        color: #e0e0e0;
+        border-bottom-color: #4a9eff;
+      }
+
+      /* Scope content area */
+      #scope-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 16px;
+        overflow: hidden;
+      }
+
+      #scope-status {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 8px;
+      }
+
+      #scope-chart-area {
+        flex: 1;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #555;
+        font-size: 14px;
+      }
+
+      /* Drag-over overlay */
+      body.drag-over::after {
+        content: "Drop collimator config (.json)";
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        font-weight: 600;
+        color: #fff;
+        background: rgba(0, 120, 255, 0.25);
+        border: 3px dashed rgba(0, 120, 255, 0.6);
+        z-index: 100;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <!-- NavBar injected by scope-main.ts -->
+      <div id="scope-content">
+        <div id="scope-status">Connecting...</div>
+        <div id="scope-chart-area">Chart will be rendered here (US-25)</div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/scope-main.ts"></script>
+  </body>
+</html>

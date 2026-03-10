@@ -9,6 +9,14 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, "index.html"),
+        scope: resolve(__dirname, "scope.html"),
+      },
+    },
+  },
   plugins: [
     {
       name: "serve-root-configs",
