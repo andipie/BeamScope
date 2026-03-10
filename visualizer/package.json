@@ -12,7 +12,8 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "three": "^0.172.0"
+    "three": "^0.172.0",
+    "uplot": "^1.6.32"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
