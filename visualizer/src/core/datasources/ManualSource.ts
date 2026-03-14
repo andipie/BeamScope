@@ -1,16 +1,19 @@
 import type { DataSource } from "../state/DataSource.js";
 import type { CollimatorState, ModuleState } from "../state/CollimatorState.js";
 import { DEFAULT_STATE } from "../state/CollimatorState.js";
+import { persistence } from "../persistence.js";
+
+const PERSIST_KEY = "manual-state";
+const PERSIST_THROTTLE_MS = 500;
 
 /**
  * Generates collimator state from the schema-driven manual UI controls.
  *
- * - On activate(): populates internal state from last known StateStore state
+ * - On activate(): restores persisted state (if any), then emits
  * - setModuleValue() is called by ManualControls on every control change
  * - Emits onStateUpdate() immediately on each change (no debounce at this level;
  *   debouncing is handled by ManualControls for slider events)
- *
- * TODO: implement full state management and ManualControls integration
+ * - State is throttle-persisted to localStorage so it survives page navigation
  */
 export class ManualSource implements DataSource {
   readonly id = "manual";
@@ -20,6 +23,7 @@ export class ManualSource implements DataSource {
 
   private state: CollimatorState = structuredClone(DEFAULT_STATE);
   private active = false;
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   activate(): void {
     this.active = true;
@@ -29,6 +33,8 @@ export class ManualSource implements DataSource {
 
   deactivate(): void {
     this.active = false;
+    // Flush any pending persistence
+    this.persistNow();
     // Controls remain visible but are disabled — state is NOT reset
   }
 
@@ -38,11 +44,24 @@ export class ManualSource implements DataSource {
    */
   seedState(state: CollimatorState): void {
     this.state = structuredClone(state);
+    this.persistNow();
+  }
+
+  /**
+   * Restore state from localStorage if available.
+   * Returns true if a persisted state was found and applied.
+   */
+  restorePersistedState(): boolean {
+    const saved = persistence.get<CollimatorState>(PERSIST_KEY);
+    if (saved && saved.modules && typeof saved.sid === "number") {
+      this.state = saved;
+      return true;
+    }
+    return false;
   }
 
   /** Update a top-level field (sid, collimator_rotation_deg). */
   setGlobalValue(key: keyof CollimatorState, value: number): void {
-    // TODO: implement type-safe update
     (this.state as unknown as Record<string, unknown>)[key] = value;
     if (this.active) this.emit();
   }
@@ -63,5 +82,22 @@ export class ManualSource implements DataSource {
 
   private emit(): void {
     this.onStateUpdate({ ...this.state, timestamp: Date.now() });
+    this.persistThrottled();
+  }
+
+  private persistThrottled(): void {
+    if (this.persistTimer !== null) return;
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      this.persistNow();
+    }, PERSIST_THROTTLE_MS);
+  }
+
+  private persistNow(): void {
+    if (this.persistTimer !== null) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+    persistence.set(PERSIST_KEY, this.state);
   }
 }

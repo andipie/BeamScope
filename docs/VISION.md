@@ -2,11 +2,11 @@
 
 ## Description
 
-**Real-time 3D visualization of X-ray collimator beam fields for radiography and angiography systems. Displays jaw positions, wedge filters and field geometry interactively in the browser — driven by live simulation data.**
+**Real-time 3D visualization of X-ray collimator beam fields for radiography and angiography systems. Displays jaw positions, wedge filters and field geometry interactively in the browser — driven by live simulation data. Includes a tabular axis data display and a dedicated scope view for time-series analysis of all collimator parameters.**
 
 ## Goal
 
-A browser-based, interactive 3D visualization of X-ray collimators for use in simulation and development of radiography (Rad) and angiography (Angio) systems. Collimators are defined as modular JSON configurations. The application receives real-time data from a simulation and displays the beam field and collimator geometry in both 3D and 2D.
+A browser-based, interactive 3D visualization of X-ray collimators for use in simulation and development of radiography (Rad) and angiography (Angio) systems. Collimators are defined as modular JSON configurations. The application receives real-time data from a simulation and displays the beam field and collimator geometry in both 3D and 2D. A dedicated scope page provides time-series analysis of all collimator parameters for detailed debugging and correlation analysis.
 
 ## Target Audience
 
@@ -19,6 +19,7 @@ Developers and engineers who build or simulate X-ray collimators for radiography
 - **Interactive**: rotatable and zoomable 3D view plus 2D top-down view (BEV)
 - **Modular**: collimators are configurable as a stack of modules via JSON
 - **Geometrically correct**: FLD, leaf thickness, and edge jump calculated correctly
+- **Analyzable**: time-series scope with configurable buffer for debugging and correlation
 
 ---
 
@@ -40,6 +41,11 @@ Developers and engineers who build or simulate X-ray collimators for radiography
 - WebSocket interface for real-time data stream
 - Local bridge server (UDP → WebSocket)
 - Two simultaneous views: 3D perspective + 2D BEV
+- Tabular axis data display: all movable axes with angles and projected positions
+- Dedicated scope page: time-series chart for all numeric parameters (raw + derived)
+  - Configurable ring buffer (10s–5min)
+  - Transport controls (run/pause/clear), zoom, pan, CSV export
+- Multi-page architecture with shared core logic (no duplication of geometry/state)
 - Configurable SID
 
 ## Out of Scope (v1)
@@ -49,7 +55,7 @@ Developers and engineers who build or simulate X-ray collimators for radiography
 - Authentication or multi-user operation
 - Mobile optimization
 - DICOM import/export
-- Long-term tracing / data recording
+- Persistent data recording / replay from file (scope buffer is volatile, in-memory only)
 
 ---
 
@@ -62,3 +68,7 @@ Developers and engineers who build or simulate X-ray collimators for radiography
 - New collimator configuration loadable via JSON without code changes
 - Runs stably in Chrome and Firefox without installation
 - A new developer can start the system locally in <15 minutes
+- Axis data table shows correct numeric values for all movable axes in real time
+- Scope view renders ≥30 fps with 10 active traces at 50 Hz sample rate
+- Scope buffer is configurable and CSV-exportable
+- Shared core logic: geometry changes take effect on both pages without duplication

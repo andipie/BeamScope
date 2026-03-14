@@ -1,7 +1,7 @@
-import type { CollimatorState } from "../state/CollimatorState.js";
-import type { CollimatorConfig } from "../config/types.js";
-import { projectToDetector } from "../geometry/projection.js";
-import { computePCProjection } from "../geometry/fieldRect.js";
+import type { CollimatorState } from "../core/state/CollimatorState.js";
+import type { CollimatorConfig } from "../core/config/types.js";
+import { projectToDetector } from "../core/geometry/projection.js";
+import { computePCProjection } from "../core/geometry/fieldRect.js";
 import { leafColorCSS } from "../utils/moduleColor.js";
 import type { LeafName } from "../utils/moduleColor.js";
 

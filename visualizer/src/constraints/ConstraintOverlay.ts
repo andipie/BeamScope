@@ -1,7 +1,7 @@
-import type { ConstraintViolation } from "./ConstraintChecker.js";
+import type { ConstraintViolation } from "../core/constraints/ConstraintChecker.js";
 import type { SceneUpdater } from "../scene/SceneUpdater.js";
-import type { CollimatorConfig } from "../config/types.js";
-import { stateStore } from "../state/StateStore.js";
+import type { CollimatorConfig } from "../core/config/types.js";
+import { stateStore } from "../core/state/StateStore.js";
 
 /**
  * Applies constraint violation visual feedback to 3D objects and the UI.

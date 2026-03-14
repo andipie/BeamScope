@@ -18,6 +18,8 @@ All measurements in **mm**, angles in **degrees**, unless stated otherwise.
 | 2026-03-06 | US-13: PC fully configurable; leaf-plane dimensions explicit; clipping visualization |
 | 2026-03-06 | US-14: FLD-dependent projection complete (fieldRect, JawObject, ConeObject) |
 | 2026-03-06 | US-15: Edge jump 3D-visible via dynamic body direction in JawObject |
+| 2026-03-10 | Epic 10: Axis Data Table added (US-23) |
+| 2026-03-10 | Epic 11: Scope View added (US-24, US-25, US-26); Multi-Page Architecture (US-27) |
 
 ---
 
@@ -507,14 +509,201 @@ and its distance from the central axis, so that I can read the field geometry pr
 
 ---
 
+## Epic 10: Axis Data Table
+
+### US-23: Tabular Axis Data Display
+As a user I want to see a collapsible table showing all axis data for every movable element
+so that I can read the exact numeric values (angles and positions) at a glance
+without relying solely on the 3D or BEV view.
+
+**Scope:**
+The table includes one row per movable axis. Movable axes are:
+- Each leaf of every jaw module (leaf1, leaf2) — two rows per jaw module
+- Wedge filter (lateral offset as position)
+- Pre-filter (angle as position)
+
+The table is **schema-driven**: rows are generated from the loaded `collimator.json`,
+analogous to the manual controls (US-19). Adding or removing modules in the configuration
+automatically changes the table — no code changes required.
+
+**Columns per axis:**
+
+| Column | Description | Unit |
+|---|---|---|
+| Module | Module ID (e.g. `jaws_x`) | — |
+| Axis | Axis designation (e.g. `leaf1`, `leaf2`, `lateral_offset`, `angle`) | — |
+| Module rotation | Individual module rotation (`module.rotation_deg`) | ° |
+| Axis angle | Angle of the ray from the focal spot through the axis position: `atan(pos_leaf / fld_mm)`, converted to degrees | ° |
+| Total rotation | Sum of module rotation + global collimator rotation (`collimator_rotation_deg`) | ° |
+| Position at leaf plane | Current axis position in the leaf plane (raw value from state) | mm |
+| Position at image plane | Projected position on the detector plane: `pos_leaf × (SID / fld_mm)` | mm |
+
+**For pre-filter:** "Position at leaf plane" shows the current angle (`angle_deg`),
+"Position at image plane" is not applicable (displayed as `—`),
+and "Axis angle" is not applicable (displayed as `—`).
+
+**For wedge filter:** "Position at leaf plane" shows `lateral_offset_mm`,
+"Position at image plane" shows the projected offset (`lateral_offset_mm × SID / fld_mm`),
+and "Axis angle" shows `atan(lateral_offset_mm / fld_mm)` in degrees.
+
+**Layout & interaction:**
+- Table is rendered in a collapsible panel (accordion), default collapsed
+- Panel title: "Axis Data" with a badge showing the number of axes (e.g. "Axis Data (6)")
+- Panel is positioned below the control panel (right side of the UI)
+- Rows are grouped by module (visual separator or alternating background)
+- Row order = module order in the configuration
+
+**Real-time behavior:**
+- Table updates live on every state change (same frequency as 3D and BEV)
+- Numeric values are displayed with 1 decimal place (e.g. `52.3 mm`, `3.1°`)
+- Values that change between frames are briefly highlighted (e.g. subtle flash or bold transition)
+
+**Constraint integration:**
+- If a constraint violation exists for an axis (US-16, US-17), the corresponding row
+  is highlighted red (consistent with 3D and BEV visualization)
+- Constraint violation type is shown as a tooltip on the highlighted row
+
+**Acceptance criteria:**
+- Table is generated entirely from `collimator.json` — no hardcoded rows
+- Loading a new configuration regenerates the table immediately
+- All three angle columns are calculated correctly (module rotation, axis angle, total rotation)
+- Leaf plane and image plane positions are geometrically consistent with 3D and BEV
+- Axis angle uses `atan(pos_leaf / fld_mm)` and updates when position or FLD changes
+- Table updates in real time (<100ms visible latency, consistent with US-03)
+- Constraint violations are highlighted consistently with US-16/US-17
+- Table is usable with any valid collimator configuration (1–N modules)
+- Collapsible panel does not interfere with existing UI layout (3D + BEV + controls)
+- Pre-filter and wedge rows display the correct subset of columns (with `—` for non-applicable fields)
+
+---
+
+## Epic 11: Scope View (Time-Series Visualization)
+
+### US-24: Multi-Page Application Architecture
+As a developer I want the application to be structured as a Vite multi-page app
+with shared core logic so that the Scope view lives on a separate page
+without duplicating geometry calculations, state types, or WebSocket client code.
+
+**Architecture:**
+- Two entry points: `index.html` (main visualization) and `scope.html` (scope view)
+- Shared core library under `src/core/`:
+  - `geometry/projection.ts` — FLD projection (`pos × SID / FLD`)
+  - `geometry/edgeJump.ts` — edge jump calculation
+  - `geometry/primaryClip.ts` — primary collimator clipping
+  - `state/CollimatorState.ts` — state types
+  - `state/StateStore.ts` — singleton state store
+  - `config/types.ts`, `config/loader.ts`, `config/validator.ts` — config handling
+  - `datasources/SimulationSource.ts` — WebSocket client
+  - `constraints/ConstraintChecker.ts` — constraint detection
+- Each page creates its own WebSocket connection to the bridge
+  (bridge already supports multiple clients via broadcast)
+- No SharedWorker required; shared logic is compile-time, not runtime
+
+**Navigation:**
+- Navigation link between pages (e.g. top bar: "Visualization" | "Scope")
+- Both pages load the same `collimator.json` configuration
+- Connection status indicator visible on both pages
+
+**Acceptance criteria:**
+- Both pages import shared core modules — no duplicated geometry or state logic
+- Changes to projection logic in `core/geometry/` are effective on both pages
+- Each page connects independently to the bridge WebSocket
+- Vite builds both pages in a single `npm run build`
+- A developer unfamiliar with the project can identify the shared code boundary in <5 minutes
+
+### US-25: Scope View — Real-time Time-Series Chart
+As a user I want a scope view that displays any selectable collimator value
+as a real-time time-series graph so that I can observe value changes over time
+and correlate movements across axes.
+
+**Chart library:** uPlot (optimized for high-frequency time-series rendering).
+
+**Available traces (all selectable):**
+Every numeric value in `CollimatorState` is available as a trace:
+
+| Category | Traces |
+|---|---|
+| Global | `sid`, `collimator_rotation_deg` |
+| Per jaw module | `leaf1`, `leaf2`, `rotation_deg`, `fld_mm` |
+| Per jaw module (derived) | `leaf1_image_plane`, `leaf2_image_plane` (projected: `pos × SID / FLD`) |
+| Per jaw module (derived) | `leaf1_axis_angle`, `leaf2_axis_angle` (`atan(pos / fld)` in °) |
+| Wedge | `lateral_offset_mm`, `rotation_deg`, `enabled` |
+| Wedge (derived) | `lateral_offset_image_plane` (projected) |
+| Pre-filter | `angle_deg`, `rotation_deg` |
+
+Derived values are calculated using the shared `core/geometry/` functions — not re-implemented.
+
+**Trace naming convention:** `{module_id}.{parameter}` (e.g. `jaws_x.leaf1`, `jaws_x.leaf1_image_plane`)
+
+**Trace selection:**
+- Sidebar or dropdown with checkboxes, grouped by module (same order as config)
+- "Select all" / "Deselect all" per module group
+- Maximum visible traces: no hard limit, but performance note at >20 active traces
+- Each trace has a unique, deterministic color (derived from module ID + parameter, colorblind-friendly)
+- Trace visibility toggleable by clicking the legend entry
+
+**Chart behavior (oscilloscope-style):**
+- Shared X-axis: time (relative to first sample or wall clock, selectable)
+- Y-axis: auto-scaling per default, with option to lock Y-range manually
+- Multiple Y-axes supported when traces have different units (mm vs. °)
+- Crosshair cursor: vertical line snapping to nearest sample, tooltip showing all visible trace values
+- Current values displayed in legend (updated at crosshair position or live at right edge)
+
+**Acceptance criteria:**
+- Any numeric value from the state (raw or derived) is selectable as a trace
+- Derived values (image plane, axis angle) use shared `core/geometry/` functions
+- Chart renders at ≥30 fps with 10 active traces and 60s of data at 50 Hz sample rate
+- Trace colors are consistent and distinguishable (colorblind-safe palette)
+- Crosshair shows exact values for all visible traces at the cursor position
+- Chart axes auto-scale correctly when traces are added/removed
+- Traces from the same module are visually grouped in the selection UI
+
+### US-26: Scope View — Configurable Ring Buffer & Transport Controls
+As a user I want to configure the time window of the scope and control recording
+so that I can choose between a quick overview and a detailed analysis of longer sequences.
+
+**Ring buffer:**
+- Configurable buffer duration: 10s, 30s, 60s, 2min, 5min (selectable via dropdown)
+- Buffer stores all trace data (not just visible traces) — enabling a trace retroactively shows past data
+- Memory budget displayed (e.g. "Buffer: 45s / 60s, ~2.1 MB")
+- When the buffer is full, oldest samples are discarded (FIFO)
+
+**Transport controls:**
+- **Run / Pause**: pauses chart scrolling and data display (buffer continues recording in background)
+- **Clear**: empties the buffer and restarts recording
+- When paused: chart is frozen, user can zoom/pan freely in the buffered data
+- When resumed: chart jumps to live and continues scrolling
+
+**Zoom & Pan:**
+- Mouse wheel zooms the X-axis (time), centered on cursor position
+- Click-drag pans the X-axis
+- Double-click resets to live view (auto-scroll, full time range)
+- Y-axis zoom via scroll on Y-axis area
+
+**Export:**
+- "Export CSV" button: exports all buffered data (all traces, not just visible) as CSV
+- CSV format: `timestamp, trace1, trace2, ...` with trace names as column headers
+- Filename: `beamscope-scope-{ISO-timestamp}.csv`
+
+**Acceptance criteria:**
+- Buffer duration is changeable at runtime without data loss (extending keeps existing data, shrinking truncates oldest)
+- Pause/resume works without losing data (buffer records in background during pause)
+- Zoom and pan are smooth (≥30 fps) even at maximum buffer size
+- Export CSV contains all traces with correct timestamps
+- Memory usage stays within reasonable bounds (~50 MB max at 5 min / 50 Hz / 30 traces)
+
+---
+
 ## Non-functional Requirements
 
 | Requirement | Target |
 |---|---|
 | Render latency (data → visible) | < 100ms |
+| Scope chart frame rate | ≥ 30 fps with 10 active traces |
 | Browser support | Chrome, Firefox (current version) |
 | Setup time (developer) | < 15 minutes |
 | Client dependencies | No installation (pure browser) |
 | Server dependencies | Node.js or Bun |
 | Collimator configuration | Loadable without code changes |
 | Manual UI | Works with any valid collimator.json |
+| Shared core logic | Geometry, state types, and WebSocket client not duplicated across pages |

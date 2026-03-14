@@ -1,4 +1,4 @@
-import type { CollimatorConfig } from "../config/types.js";
+import type { CollimatorConfig } from "../core/config/types.js";
 import { leafColorCSS } from "../utils/moduleColor.js";
 import type { LeafName } from "../utils/moduleColor.js";
 

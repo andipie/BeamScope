@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import type { CollimatorState } from "../state/CollimatorState.js";
-import type { CollimatorConfig, ModuleConfig, PrefilterSegment } from "../config/types.js";
+import type { CollimatorState } from "../core/state/CollimatorState.js";
+import type { CollimatorConfig, ModuleConfig, PrefilterSegment } from "../core/config/types.js";
 
 /** Outer radius of the filter wheel disk (mm). */
 const DISK_RADIUS = 150;

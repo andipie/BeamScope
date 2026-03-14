@@ -3,12 +3,15 @@ import { SceneUpdater } from "./scene/SceneUpdater.js";
 import { BEVRenderer } from "./bev/BEVRenderer.js";
 import { ControlPanel } from "./ui/ControlPanel.js";
 import { ManualControls } from "./ui/ManualControls.js";
-import { SimulationSource } from "./datasources/SimulationSource.js";
-import { ManualSource } from "./datasources/ManualSource.js";
-import { stateStore } from "./state/StateStore.js";
-import { checkConstraints } from "./constraints/ConstraintChecker.js";
+import { SimulationSource } from "./core/datasources/SimulationSource.js";
+import { ManualSource } from "./core/datasources/ManualSource.js";
+import { stateStore } from "./core/state/StateStore.js";
+import { checkConstraints } from "./core/constraints/ConstraintChecker.js";
 import { ConstraintOverlay } from "./constraints/ConstraintOverlay.js";
-import { loadConfigFromUrl } from "./config/loader.js";
+import { loadConfigFromUrl } from "./core/config/loader.js";
+import { persistence } from "./core/persistence.js";
+import { createNavBar } from "./ui/NavBar.js";
+import { AxisDataTable } from "./ui/AxisDataTable.js";
 
 /**
  * Application entry point.
@@ -25,6 +28,12 @@ import { loadConfigFromUrl } from "./config/loader.js";
  */
 
 async function main(): Promise<void> {
+  // --- NavBar ---
+  const app = document.getElementById("app");
+  if (app) {
+    app.insertBefore(createNavBar("visualization"), app.firstChild);
+  }
+
   // --- DOM references ---
   const panel3d = document.getElementById("panel-3d");
   const bevCanvas = document.getElementById("bev-canvas");
@@ -48,6 +57,7 @@ async function main(): Promise<void> {
   const constraintOverlay = new ConstraintOverlay();
   constraintOverlay.init(sceneUpdater);
   const manualControls = new ManualControls();
+  const axisDataTable = new AxisDataTable();
 
   // --- Data sources ---
   const manualSource = new ManualSource();
@@ -59,7 +69,10 @@ async function main(): Promise<void> {
   const controlPanel = new ControlPanel();
   controlPanel.registerSources([manualSource, simulationSource], (source) => {
     if (source.id === "manual") {
-      manualSource.seedState(stateStore.getState());
+      // Try persisted state first, fall back to current state
+      if (!manualSource.restorePersistedState()) {
+        manualSource.seedState(stateStore.getState());
+      }
       // Re-render controls with current state values (US-18 AC#2)
       const config = stateStore.getConfig();
       const mc = document.getElementById("manual-controls");
@@ -83,9 +96,12 @@ async function main(): Promise<void> {
     sceneUpdater.onStateUpdate(state, config);
     bevRenderer.render(state, config);
 
+    axisDataTable.update(state, config);
+
     const violations = checkConstraints(state, config);
     constraintOverlay.applyViolations(violations);
     manualControls.applyViolations(violations);
+    axisDataTable.applyViolations(violations);
 
     controlPanel.setLatency(state.timestamp > 0 ? Date.now() - state.timestamp : null);
   });
@@ -95,9 +111,13 @@ async function main(): Promise<void> {
     try {
       const config =
         source instanceof File
-          ? await (await import("./config/loader.js")).loadConfigFromFile(source)
-          : await (await import("./config/loader.js")).loadConfigFromUrl((source as Response).url);
+          ? await (await import("./core/config/loader.js")).loadConfigFromFile(source)
+          : await (await import("./core/config/loader.js")).loadConfigFromUrl((source as Response).url);
 
+      // Persist config path so other pages load the same config
+      if (source instanceof File) {
+        persistence.setString("config", source.name);
+      }
       stateStore.setConfig(config);
       sceneUpdater.onConfigLoaded(config);
       bevRenderer.onConfigLoaded(config);
@@ -113,6 +133,8 @@ async function main(): Promise<void> {
         manualControls.render(manualControlsContainer, config, manualSource);
         constraintOverlay.renderConstraintEditor(manualControlsContainer, config);
       }
+      const axisContainer = document.getElementById("axis-data-table");
+      if (axisContainer) axisDataTable.buildFromConfig(axisContainer, config);
     } catch (err) {
       console.error("[main] Failed to load config:", err);
     }
@@ -136,16 +158,17 @@ async function main(): Promise<void> {
   });
 
   // --- Load default config ---
-  // Allow overriding the startup config via ?config=<name-or-path>, e.g.:
-  //   http://localhost:5173?config=quad-jaw-v1.json
-  //   http://localhost:5173?config=/configs/quad-jaw-v1.json
-  const configParam = new URLSearchParams(window.location.search).get("config");
+  // Priority: ?config= URL param > persisted config > default
+  const configParam = new URLSearchParams(window.location.search).get("config")
+    ?? persistence.getString("config");
   const defaultConfigUrl = configParam
     ? configParam.startsWith("/") ? configParam : `/configs/${configParam}`
     : "/configs/example-collimator.json";
 
   try {
     const config = await loadConfigFromUrl(defaultConfigUrl);
+    if (configParam) persistence.setString("config", configParam);
+    else persistence.remove("config");
     stateStore.setConfig(config);
     sceneUpdater.onConfigLoaded(config);
     bevRenderer.onConfigLoaded(config);
@@ -156,14 +179,33 @@ async function main(): Promise<void> {
       manualControls.render(manualControlsContainer, config, manualSource);
       constraintOverlay.renderConstraintEditor(manualControlsContainer, config);
     }
+    const axisContainer = document.getElementById("axis-data-table");
+    if (axisContainer) axisDataTable.buildFromConfig(axisContainer, config);
   } catch {
     console.warn("[main] Default config not found — drag a collimator JSON to load one.");
   }
 
-  // --- Activate default data source (Manual) ---
-  stateStore.setActiveSource(manualSource);
-  controlPanel.setStatus("manual");
-  manualControls.setEnabled(true);
+  // --- Activate data source (restore from localStorage or default to Manual) ---
+  const savedSource = persistence.getString("source");
+  if (savedSource === "simulation") {
+    stateStore.setActiveSource(simulationSource);
+    controlPanel.setSelectedId("simulation");
+    manualControls.setEnabled(false);
+  } else {
+    // Restore persisted manual control values, then activate → emits into stateStore
+    manualSource.restorePersistedState();
+    stateStore.setActiveSource(manualSource);
+    controlPanel.setStatus("manual");
+    manualControls.setEnabled(true);
+    persistence.setString("source", "manual");
+
+    // Re-render controls now that stateStore has the restored values
+    const config = stateStore.getConfig();
+    const mc = document.getElementById("manual-controls");
+    if (config && mc) {
+      manualControls.render(mc, config, manualSource);
+    }
+  }
 
   // --- Wire "Reset View" button (US-10) ---
   document.getElementById("reset-view-btn")?.addEventListener("click", () => {

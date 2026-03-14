@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import type { CollimatorState } from "../state/CollimatorState.js";
-import type { CollimatorConfig } from "../config/types.js";
-import { computePCProjection, computeRawJawField } from "../geometry/fieldRect.js";
+import type { CollimatorState } from "../core/state/CollimatorState.js";
+import type { CollimatorConfig } from "../core/config/types.js";
+import { computePCProjection, computeRawJawField } from "../core/geometry/fieldRect.js";
 
 /** Half-size of the cosmetic housing frame surrounding the aperture (mm). */
 const HOUSING_HALF = 250;

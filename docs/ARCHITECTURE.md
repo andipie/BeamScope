@@ -8,57 +8,56 @@
 ## 1. System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              BROWSER                                     │
-│                                                                          │
-│  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │                        Visualizer (Vite + TS)                    │    │
-│  │                                                                   │    │
-│  │  ┌──────────┐  ┌───────────────┐  ┌────────────────────────┐   │    │
-│  │  │ config/  │  │ datasources/  │  │        ui/             │   │    │
-│  │  │ Loader   │  │               │  │                        │   │    │
-│  │  │ Validator│  │ SimSource  ◄──┼──┼── WebSocket            │   │    │
-│  │  └────┬─────┘  │ ManualSource──┼──┼── ControlPanel         │   │    │
-│  │       │        │ (future:      │  │   ManualControls       │   │    │
-│  │       │        │  ReplaySource)│  └────────────────────────┘   │    │
-│  │       ▼        └──────┬────────┘                                │    │
-│  │  CollimatorConfig     │ onStateUpdate(CollimatorState)          │    │
-│  │       │               ▼                                         │    │
-│  │       │        ┌─────────────┐                                  │    │
-│  │       └───────►│ Central     │                                  │    │
-│  │                │ State Store │                                  │    │
-│  │                └──────┬──────┘                                  │    │
-│  │                       │                                         │    │
-│  │          ┌────────────┴────────────┐                            │    │
-│  │          ▼                         ▼                            │    │
-│  │  ┌───────────────┐        ┌────────────────┐                   │    │
-│  │  │  scene/       │        │   bev/         │                   │    │
-│  │  │  Three.js 3D  │        │   2D BEV Canvas│                   │    │
-│  │  │  ┌──────────┐ │        └────────────────┘                   │    │
-│  │  │  │ objects/ │ │                                              │    │
-│  │  │  │ geometry/│ │                                              │    │
-│  │  │  │constraints│ │                                              │    │
-│  │  │  └──────────┘ │                                              │    │
-│  │  └───────────────┘                                              │    │
-│  └─────────────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────────────┘
-          ▲
-          │ WebSocket (ws://)
-          │
-┌─────────────────────┐
-│  Bridge Server      │
-│  (Bun/Node.js)      │
-│                     │
-│  UDP ──► WS Bridge  │
-│  dgram + ws         │
-└─────────────────────┘
-          ▲
-          │ UDP (JSON packets)
-          │
-┌─────────────────────┐
-│  Simulation         │
-│  (external)         │
-└─────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                BROWSER                                        │
+│                                                                               │
+│  ┌─────────────────────────────────────┐  ┌────────────────────────────┐    │
+│  │   Main Page (index.html)            │  │   Scope Page (scope.html)  │    │
+│  │                                      │  │                            │    │
+│  │  ┌───────────┐  ┌──────────────┐   │  │  ┌──────────────────────┐  │    │
+│  │  │ scene/    │  │ bev/         │   │  │  │ scope/               │  │    │
+│  │  │ Three.js  │  │ Canvas 2D    │   │  │  │ uPlot time-series    │  │    │
+│  │  │ 3D View   │  │ BEV          │   │  │  │ RingBuffer           │  │    │
+│  │  └───────────┘  └──────────────┘   │  │  │ TraceSelector        │  │    │
+│  │  ┌───────────┐  ┌──────────────┐   │  │  │ TransportControls    │  │    │
+│  │  │ objects/  │  │ ui/          │   │  │  └──────────────────────┘  │    │
+│  │  │ constraints│  │ ControlPanel │   │  │                            │    │
+│  │  └───────────┘  │ ManualControls│   │  └─────────────┬──────────────┘    │
+│  │                  │ AxisDataTable │   │                │                    │
+│  │                  └──────────────┘   │                │                    │
+│  └──────────────┬──────────────────────┘                │                    │
+│                 │                                        │                    │
+│                 ▼                                        ▼                    │
+│  ┌────────────────────────────────────────────────────────────────────┐      │
+│  │                    Shared Core (src/core/)                          │      │
+│  │                                                                     │      │
+│  │  config/          state/            geometry/        constraints/   │      │
+│  │  Loader           CollimatorState   projection.ts    Checker        │      │
+│  │  Validator        StateStore        edgeJump.ts                     │      │
+│  │  types.ts         DataSource        primaryClip.ts                  │      │
+│  │                                                                     │      │
+│  │  datasources/                                                       │      │
+│  │  SimulationSource (WebSocket client)                                │      │
+│  │  ManualSource                                                       │      │
+│  └──────────────────────────┬─────────────────────────────────────────┘      │
+│                              │                                                │
+└──────────────────────────────┼────────────────────────────────────────────────┘
+                               │ WebSocket (ws://) — one connection per page
+                               │
+                    ┌─────────────────────┐
+                    │  Bridge Server      │
+                    │  (Bun/Node.js)      │
+                    │                     │
+                    │  UDP ──► WS Bridge  │
+                    │  dgram + ws         │
+                    └─────────────────────┘
+                               ▲
+                               │ UDP (JSON packets)
+                               │
+                    ┌─────────────────────┐
+                    │  Simulation         │
+                    │  (external)         │
+                    └─────────────────────┘
 ```
 
 ---
@@ -71,63 +70,92 @@
 │   ├── server.ts                   # UDP → WebSocket bridge (dgram + ws)
 │   └── package.json
 │
-├── visualizer/                     # Vite application
-│   ├── index.html
+├── visualizer/                     # Vite multi-page application
+│   ├── index.html                  # Main page: 3D + BEV visualization
+│   ├── scope.html                  # Scope page: time-series charts
 │   ├── package.json
+│   ├── vite.config.ts              # Multi-page entry points
 │   └── src/
-│       ├── main.ts                 # Entry point: wire everything together
+│       ├── main.ts                 # Entry point: main page
+│       ├── scope-main.ts           # Entry point: scope page
 │       │
-│       ├── config/
-│       │   ├── loader.ts           # Load JSON (fetch + drag-and-drop)
-│       │   ├── validator.ts        # Schema validation of CollimatorConfig
-│       │   └── types.ts            # CollimatorConfig, ModuleConfig, etc.
+│       ├── core/                   # ★ Shared core — imported by both pages
+│       │   ├── config/
+│       │   │   ├── loader.ts       # Load JSON (fetch + drag-and-drop)
+│       │   │   ├── validator.ts    # Schema validation of CollimatorConfig
+│       │   │   └── types.ts        # CollimatorConfig, ModuleConfig, etc.
+│       │   │
+│       │   ├── state/
+│       │   │   ├── CollimatorState.ts  # Types: CollimatorState, ModuleState
+│       │   │   ├── StateStore.ts       # Singleton; notifies subscribers
+│       │   │   └── DataSource.ts       # Interface: activate/deactivate/onStateUpdate
+│       │   │
+│       │   ├── datasources/
+│       │   │   ├── SimulationSource.ts # WebSocket client; parses JSON stream
+│       │   │   └── ManualSource.ts     # Generates state from ManualControls events
+│       │   │
+│       │   ├── geometry/
+│       │   │   ├── projection.ts       # FLD projection: pos × (SID / FLD)
+│       │   │   ├── edgeJump.ts         # Edge jump calculation (leaf plane)
+│       │   │   ├── axisAngle.ts        # Axis angle: atan(pos / fld) in degrees
+│       │   │   └── primaryClip.ts      # Primary collimator projection + intersection
+│       │   │
+│       │   └── constraints/
+│       │       └── ConstraintChecker.ts # Detect end-stop + leaf crossing violations
 │       │
-│       ├── state/
-│       │   ├── CollimatorState.ts  # Types: CollimatorState, ModuleState
-│       │   ├── StateStore.ts       # Singleton; notifies subscribers
-│       │   └── DataSource.ts       # Interface: activate/deactivate/onStateUpdate
+│       ├── scene/                      # Main page only
+│       │   ├── SceneManager.ts         # Three.js WebGLRenderer, camera, OrbitControls
+│       │   └── SceneUpdater.ts         # Receives state, delegates to objects/
 │       │
-│       ├── datasources/
-│       │   ├── SimulationSource.ts # WebSocket client; parses JSON stream
-│       │   └── ManualSource.ts     # Generates state from ManualControls events
+│       ├── objects/                     # Main page only
+│       │   ├── JawObject.ts            # Jaw pair (rect, square, asymmetric)
+│       │   ├── WedgeObject.ts          # Wedge filter
+│       │   ├── PrefilterObject.ts      # Rotatable pre-filter wheel
+│       │   ├── ConeObject.ts           # Beam cone geometry
+│       │   ├── DetectorObject.ts       # Detector plane
+│       │   └── PrimaryCollimator.ts    # Primary collimator (rect or circular)
 │       │
-│       ├── scene/
-│       │   ├── SceneManager.ts     # Three.js WebGLRenderer, camera, OrbitControls
-│       │   └── SceneUpdater.ts     # Receives state, delegates to objects/
+│       ├── bev/                        # Main page only
+│       │   ├── BEVRenderer.ts          # 2D canvas: field, edges, annotations
+│       │   └── BEVAnnotations.ts       # Measurements, leaf labels
 │       │
-│       ├── objects/
-│       │   ├── JawObject.ts        # Jaw pair (rect, square, asymmetric)
-│       │   ├── WedgeObject.ts      # Wedge filter
-│       │   ├── PrefilterObject.ts  # Rotatable pre-filter wheel
-│       │   ├── ConeObject.ts       # Beam cone geometry
-│       │   ├── DetectorObject.ts   # Detector plane
-│       │   └── PrimaryCollimator.ts # Primary collimator (rect or circular)
+│       ├── constraints/                # Main page only (3D overlay)
+│       │   └── ConstraintOverlay.ts    # 3D highlight + UI badge
 │       │
-│       ├── geometry/
-│       │   ├── projection.ts       # FLD projection: pos × (SID / FLD)
-│       │   ├── edgeJump.ts         # Edge jump calculation (leaf plane)
-│       │   └── primaryClip.ts      # Primary collimator projection + intersection
+│       ├── scope/                      # ★ Scope page only
+│       │   ├── ScopeChart.ts           # uPlot wrapper: chart lifecycle, trace management
+│       │   ├── RingBuffer.ts           # Configurable FIFO buffer for time-series data
+│       │   ├── TraceRegistry.ts        # Trace definitions: raw + derived, per config
+│       │   ├── TraceSelector.ts        # UI: checkbox tree grouped by module
+│       │   ├── TransportControls.ts    # Run / Pause / Clear buttons
+│       │   └── CsvExport.ts           # Export buffered data as CSV
 │       │
-│       ├── bev/
-│       │   ├── BEVRenderer.ts      # 2D canvas: field, edges, annotations
-│       │   └── BEVAnnotations.ts   # Measurements, leaf labels
-│       │
-│       ├── constraints/
-│       │   ├── ConstraintChecker.ts # Detect end-stop + leaf crossing violations
-│       │   └── ConstraintOverlay.ts # 3D highlight + UI badge
-│       │
-│       └── ui/
-│           ├── ControlPanel.ts     # Data source dropdown + connection status
-│           └── ManualControls.ts   # Schema-driven UI from CollimatorConfig
+│       └── ui/                         # Main page only
+│           ├── ControlPanel.ts         # Data source dropdown + connection status
+│           ├── ManualControls.ts       # Schema-driven UI from CollimatorConfig
+│           ├── AxisDataTable.ts        # Collapsible axis data table (US-23)
+│           └── NavBar.ts               # Navigation: "Visualization" | "Scope"
 │
 ├── configs/
-│   └── example-collimator.json    # Full configuration example
+│   └── example-collimator.json        # Full configuration example
 │
 └── docs/
     ├── VISION.md
     ├── REQUIREMENTS.md
-    └── ARCHITECTURE.md            ← this file
+    └── ARCHITECTURE.md                ← this file
 ```
+
+### Shared Core Boundary
+
+The `src/core/` directory is the **single source of truth** for:
+- Data types (`CollimatorState`, `CollimatorConfig`)
+- Geometry calculations (projection, edge jump, axis angle, primary clipping)
+- Constraint detection
+- Configuration loading and validation
+- WebSocket/data source client logic
+
+**Rule:** If logic is needed by both pages, it belongs in `core/`.
+Page-specific code (`scene/`, `objects/`, `bev/`, `scope/`, `ui/`) must **never** be imported cross-page.
 
 ---
 
@@ -136,41 +164,18 @@
 ### 3.1 CollimatorConfig (static, loaded from JSON file)
 
 ```typescript
-// config/types.ts
+// core/config/types.ts
 interface CollimatorConfig {
   collimator_id: string;
   primary_collimator: PrimaryCollimatorConfig;
   modules: ModuleConfig[];
-}
-
-interface PrimaryCollimatorConfig {
-  shape: 'rect' | 'circle' | 'ellipse';
-  size: { x: number; y: number };   // mm
-  fld_mm: number;
-}
-
-type ModuleType = 'jaws_rect' | 'jaws_square' | 'jaws_asymmetric' | 'wedge' | 'prefilter';
-
-interface ModuleConfig {
-  id: string;
-  type: ModuleType;
-  fld_mm: number;
-  thickness_mm: number;
-  constraints?: {
-    min_mm: number;
-    max_mm: number;
-  };
-  // module-specific fields:
-  //   prefilter: segments[]
-  //   wedge: lateral_offset_mm (startup default), enabled, thickness_mm
-  [key: string]: unknown;
 }
 ```
 
 ### 3.2 CollimatorState (dynamic, from DataSource)
 
 ```typescript
-// state/CollimatorState.ts
+// core/state/CollimatorState.ts
 interface CollimatorState {
   timestamp: number;
   sid: number;                          // mm
@@ -190,7 +195,7 @@ type ModuleState = {
 ### 3.3 DataSource Interface
 
 ```typescript
-// state/DataSource.ts
+// core/state/DataSource.ts
 interface DataSource {
   readonly id: string;
   readonly label: string;
@@ -200,30 +205,87 @@ interface DataSource {
 }
 ```
 
+### 3.4 TraceDefinition (Scope)
+
+```typescript
+// scope/TraceRegistry.ts
+interface TraceDefinition {
+  id: string;                           // e.g. "jaws_x.leaf1_image_plane"
+  moduleId: string;                     // e.g. "jaws_x"
+  parameter: string;                    // e.g. "leaf1_image_plane"
+  unit: '°' | 'mm' | 'bool';
+  derived: boolean;                     // true = calculated from raw values
+  extract: (state: CollimatorState, config: CollimatorConfig) => number;
+}
+```
+
+### 3.5 RingBuffer
+
+```typescript
+// scope/RingBuffer.ts
+interface RingBufferConfig {
+  maxDurationMs: number;                // e.g. 60000 for 60s
+}
+
+interface RingBufferSample {
+  timestamp: number;
+  values: Record<string, number>;       // traceId → value
+}
+```
+
 ---
 
-## 4. Data Flow (Happy Path)
+## 4. Data Flow
+
+### 4.1 Main Page (Happy Path)
 
 ```
 Simulation
   │  UDP JSON packet
   ▼
 Bridge Server
-  │  WebSocket JSON frame
+  │  WebSocket JSON frame (broadcast to all clients)
   ▼
-SimulationSource.ts
+SimulationSource.ts (core/)
   │  CollimatorState
   ▼
-StateStore.ts  ◄── ManualSource.ts (alternative)
+StateStore.ts (core/)  ◄── ManualSource.ts (alternative)
   │  notifySubscribers(state)
   ├──► SceneUpdater.ts
   │      └──► JawObject / WedgeObject / ... → Three.js scene
-  └──► BEVRenderer.ts
-         └──► Canvas 2D
+  ├──► BEVRenderer.ts
+  │      └──► Canvas 2D
+  └──► AxisDataTable.ts
+         └──► DOM table (real-time numeric values)
 ```
 
-**Invariant:** The visualization layer reads exclusively from the StateStore.
+### 4.2 Scope Page (Happy Path)
+
+```
+Bridge Server
+  │  WebSocket JSON frame (independent connection)
+  ▼
+SimulationSource.ts (core/ — same code, separate instance)
+  │  CollimatorState
+  ▼
+StateStore.ts (core/)
+  │  notifySubscribers(state)
+  ▼
+TraceRegistry.ts
+  │  extract raw + derived values using core/geometry/*
+  ▼
+RingBuffer.ts
+  │  append sample, discard oldest if full
+  ▼
+ScopeChart.ts (uPlot)
+  │  render visible traces
+  ▼
+Canvas (uPlot)
+```
+
+**Invariant:** Both pages read exclusively from their own StateStore instance.
 No object communicates directly with a DataSource.
+Derived trace values are computed using `core/geometry/` functions — never re-implemented in scope code.
 
 ---
 
@@ -254,7 +316,16 @@ pos_detector = pos_leaf × (SID / FLD)
 ```
 
 Each module has its own `fld_mm` (from config or data stream override).
-Projection is calculated in `geometry/projection.ts` — never inline in objects.
+Projection is calculated in `core/geometry/projection.ts` — never inline in objects.
+
+### Axis Angle
+
+```
+axis_angle_deg = atan(pos_leaf / fld_mm) × (180 / π)
+```
+
+Calculated in `core/geometry/axisAngle.ts`. Used by AxisDataTable (US-23) and
+Scope derived traces (US-25).
 
 ### Edge Jump
 
@@ -266,7 +337,7 @@ Projection is calculated in `geometry/projection.ts` — never inline in objects
 
 Detection is sign-based via `Math.sign(leaf)`. No floating-point tolerance band needed.
 
-Edge jump is calculated in `geometry/edgeJump.ts` in the leaf plane,
+Edge jump is calculated in `core/geometry/edgeJump.ts` in the leaf plane,
 **then** projected to the detector plane.
 
 ### Primary Collimator
@@ -341,7 +412,90 @@ Result: list of `ConstraintViolation` with module ID, type, and severity.
 
 ---
 
-## 9. Bridge Server
+## 9. Axis Data Table
+
+`ui/AxisDataTable.ts` subscribes to the StateStore and renders a collapsible HTML table.
+
+**Schema-driven:** Rows are generated from `CollimatorConfig.modules` — one row per movable axis:
+- Jaw modules: 2 rows (leaf1, leaf2)
+- Wedge: 1 row (lateral_offset)
+- Prefilter: 1 row (angle)
+
+**Calculations use shared core functions:**
+- Image plane position: `core/geometry/projection.ts`
+- Axis angle: `core/geometry/axisAngle.ts`
+- Constraint status: `core/constraints/ConstraintChecker.ts`
+
+Total rotation = `module.rotation_deg + collimator_rotation_deg` (calculated inline, trivial).
+
+**Update strategy:** Full table re-render on every state change. For typical configurations
+(4–8 rows) this is imperceptible; DOM diffing is not required.
+
+---
+
+## 10. Scope Architecture
+
+### Component Responsibilities
+
+| Component | Responsibility |
+|---|---|
+| `TraceRegistry.ts` | Generates `TraceDefinition[]` from loaded config; one entry per raw parameter + derived values; uses `core/geometry/*` for derived extractors |
+| `RingBuffer.ts` | Stores `{timestamp, values}` samples in a FIFO array; configurable max duration; provides `append()`, `clear()`, `getRange()`, `exportCsv()` |
+| `ScopeChart.ts` | Wraps uPlot instance; manages series add/remove; handles zoom/pan state; re-renders on buffer append |
+| `TraceSelector.ts` | Checkbox tree UI grouped by module; toggles trace visibility in ScopeChart |
+| `TransportControls.ts` | Run/Pause/Clear buttons; when paused, buffer continues recording but chart freezes |
+| `CsvExport.ts` | Reads entire buffer, formats as CSV with trace names as headers, triggers download |
+
+### Data Pipeline (per frame)
+
+```
+StateStore.onUpdate(state)
+  │
+  ▼
+TraceRegistry.extractAll(state, config)
+  │  → { "jaws_x.leaf1": -50.0, "jaws_x.leaf1_image_plane": -100.0, ... }
+  ▼
+RingBuffer.append(timestamp, values)
+  │  → discard oldest if buffer full
+  ▼
+ScopeChart.update()
+  │  → uPlot.setData() with visible traces only
+  ▼
+Canvas (uPlot renders)
+```
+
+### Buffer Sizing
+
+| Duration | Sample rate | Traces | Approx. memory |
+|---|---|---|---|
+| 10s | 50 Hz | 30 | ~0.5 MB |
+| 60s | 50 Hz | 30 | ~3 MB |
+| 5min | 50 Hz | 30 | ~15 MB |
+
+Memory budget target: <50 MB at maximum configuration.
+
+### Vite Multi-Page Configuration
+
+```typescript
+// vite.config.ts
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        scope: resolve(__dirname, 'scope.html'),
+      },
+    },
+  },
+});
+```
+
+Both pages share `core/` via standard ES module imports.
+Vite tree-shakes unused code per entry point (e.g. Three.js is not bundled into scope).
+
+---
+
+## 11. Bridge Server
 
 - **Runtime**: Bun (preferred) or Node.js
 - **UDP port**: configurable, default `5005`
@@ -351,33 +505,39 @@ Result: list of `ConstraintViolation` with module ID, type, and severity.
 
 ---
 
-## 10. Tech Stack – Rationale
+## 12. Tech Stack – Rationale
 
 | Decision | Rationale |
 |---|---|
 | **Three.js** | Established, large community, sufficient for non-photorealistic medical visualization; no WebGPU overhead |
 | **Vanilla TS + Vite** | Minimal abstraction; no framework dependency; fast HMR in dev |
+| **Vite multi-page** | Two entry points (`index.html`, `scope.html`) with shared `core/`; single build, no duplication |
+| **uPlot** (scope) | Extremely performant for time-series rendering; minimal overhead; native zoom/pan/cursor; handles 100k+ points at 60fps |
 | **Bun** for bridge | Fast startup, native TypeScript support without tsconfig overhead |
 | **No state framework** | State is simple enough for a singleton store; Redux/Zustand would be over-engineering |
 | **Canvas 2D for BEV** | BEV is a flat 2D drawing; Three.js would be unnecessarily complex |
 | **dgram (built-in)** | UDP reception without external dependency |
 | **ws** | Lightweight, stable, no framework lock-in |
+| **No SharedWorker** | Each page connects independently to the bridge; bridge broadcasts to all clients; avoids SharedWorker debugging complexity |
 
 ---
 
-## 11. Extension Points
+## 13. Extension Points
 
 | Extension | Entry point |
 |---|---|
-| Replay / file source | New class `ReplaySource implements DataSource` |
-| New module type | Extend `ModuleConfig` type + add entry to control generator map |
-| Non-rectangular primary collimator | Extend `primaryClip.ts` with elliptical clipping |
+| Replay / file source | New class `ReplaySource implements DataSource` in `core/datasources/` |
+| New module type | Extend `ModuleConfig` type + add entry to control generator map + add trace definitions in `TraceRegistry` |
+| Non-rectangular primary collimator | Extend `core/geometry/primaryClip.ts` with elliptical clipping |
 | Remote bridge | Make `SimulationSource` URL configurable |
-| Theme / dark mode | CSS custom properties in `index.html` |
+| Theme / dark mode | CSS custom properties in `index.html` and `scope.html` |
+| New derived trace | Add `TraceDefinition` in `TraceRegistry.ts` using `core/geometry/*` functions |
+| Third page (e.g. config editor) | Add entry point in `vite.config.ts`, import from `core/` |
+| Scope triggers / markers | Extend `RingBuffer` with event annotation support |
 
 ---
 
-## 12. Non-Goals (architectural)
+## 14. Non-Goals (architectural)
 
 - No server-side rendering
 - No authentication / sessions

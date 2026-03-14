@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import type { CollimatorState } from "../state/CollimatorState.js";
-import type { CollimatorConfig } from "../config/types.js";
-import { computeFieldPolygon } from "../geometry/fieldPolygon.js";
+import type { CollimatorState } from "../core/state/CollimatorState.js";
+import type { CollimatorConfig } from "../core/config/types.js";
+import { computeFieldPolygon } from "../core/geometry/fieldPolygon.js";
 
 /** Maximum polygon vertices for the base (pre-allocated buffer). */
 const MAX_BASE_VERTS = 20;

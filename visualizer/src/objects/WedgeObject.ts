@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import type { CollimatorState } from "../state/CollimatorState.js";
-import type { CollimatorConfig, ModuleConfig } from "../config/types.js";
+import type { CollimatorState } from "../core/state/CollimatorState.js";
+import type { CollimatorConfig, ModuleConfig } from "../core/config/types.js";
 
 /**
  * Visual footprint of the wedge in the XZ plane (mm).

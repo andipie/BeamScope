@@ -1,5 +1,6 @@
-import type { DataSource } from "../state/DataSource.js";
-import type { ConnectionStatus } from "../datasources/SimulationSource.js";
+import type { DataSource } from "../core/state/DataSource.js";
+import type { ConnectionStatus } from "../core/datasources/SimulationSource.js";
+import { persistence } from "../core/persistence.js";
 
 /**
  * Manages the data source dropdown and connection status badge in the UI.
@@ -8,7 +9,6 @@ import type { ConnectionStatus } from "../datasources/SimulationSource.js";
  *   #source-select  — <select> for data source switching
  *   #status-badge   — <span> showing connection status
  *
- * TODO: implement full event wiring and status management
  */
 export class ControlPanel {
   private readonly selectEl: HTMLSelectElement;
@@ -81,11 +81,16 @@ export class ControlPanel {
     }
   }
 
+  /** Programmatically select a source by id (updates dropdown, does NOT fire onChange). */
+  setSelectedId(id: string): void {
+    this.selectEl.value = id;
+  }
+
   private handleSourceChange(): void {
     const selectedId = this.selectEl.value;
     const source = this.sources.find((s) => s.id === selectedId);
     if (source && this.onSourceChange) {
-      // TODO: seed ManualSource with current state before activating
+      persistence.setString("source", source.id);
       this.onSourceChange(source);
     }
   }

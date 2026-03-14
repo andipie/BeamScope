@@ -25,6 +25,7 @@ The collimator is described as a JSON configuration file — any combination of 
 
 ## Features
 
+- **Multi-page architecture** — 3D visualization page + real-time scope (time-series) page; settings persist across page navigation
 - **Two synchronized views** — interactive rotatable 3D scene + 2D top-down BEV projection
 - **Modular collimator model** — assemble any combination of modules via a single JSON file
 - **5 module types**: symmetric rectangular jaws, 4-jaw square collimator, asymmetric jaws, physical wedge filter, rotating pre-filter wheel
@@ -34,6 +35,7 @@ The collimator is described as a JSON configuration file — any combination of 
 - **Rotating pre-filter wheel** — pie-slice segments with per-segment labels that spin with the disk; active segment highlighted by opacity
 - **Mechanical constraint detection** — end-stop violations and leaf crossing highlighted in real time (red + UI badge)
 - **Three switchable data sources** — live simulation (UDP), manual UI, *(replay mode planned)*
+- **Scope page** — real-time time-series chart (uPlot) with configurable ring buffer, selectable traces, zoom/pan, pause/resume, and CSV export
 - **Flexible config loading** — specify startup config via `?config=` URL parameter, or swap configs at runtime via drag and drop
 - **No client install required** — runs in any modern browser
 
@@ -50,8 +52,8 @@ flowchart LR
     end
 
     subgraph BROWSER ["Browser - localhost:5173"]
-        V3D["3D View"]
-        BEV["Beam's Eye View"]
+        V3D["3D View + BEV"]
+        SCOPE["Scope (time-series)"]
     end
 
     CFG(["configs/*.json"])
@@ -510,7 +512,8 @@ You do not need to include all modules in every packet. The visualizer **deep-me
 | Layer | Technology |
 |---|---|
 | 3D rendering | [Three.js](https://threejs.org) 0.172 |
-| Frontend | TypeScript 5.7 + [Vite](https://vitejs.dev) 6 |
+| Time-series charts | [uPlot](https://github.com/leeoniya/uPlot) 1.6 |
+| Frontend | TypeScript 5.7 + [Vite](https://vitejs.dev) 6 (multi-page) |
 | Bridge server | [Bun](https://bun.sh) / Node.js + [ws](https://github.com/websockets/ws) |
 | Transport | UDP → WebSocket (plain JSON) |
 | Demo simulation | Python 3 (standard library only) |
@@ -528,6 +531,8 @@ Early development — hobby project.
 - Geometrically correct FLD projection, edge jump, and primary collimator intersection
 - Mechanical constraint detection (end-stop + leaf crossing) with real-time highlight
 - Schema-driven manual control UI (auto-generated from config, no hardcoding)
+- Real-time scope page with time-series chart (uPlot), trace selection, zoom/pan, CSV export
+- Multi-page architecture with localStorage-based settings persistence
 - Three switchable data sources (simulation / manual)
 - Drag-and-drop config loading
 

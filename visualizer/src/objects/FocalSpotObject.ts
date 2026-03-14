@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { CollimatorState } from "../state/CollimatorState.js";
+import type { CollimatorState } from "../core/state/CollimatorState.js";
 
 /**
  * 3D representation of the X-ray tube focal spot.

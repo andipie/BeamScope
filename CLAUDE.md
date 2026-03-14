@@ -15,7 +15,8 @@ Full details: `docs/VISION.md` and `docs/REQUIREMENTS.md`
 | Component | Technology |
 |---|---|
 | 3D Rendering | Three.js |
-| Frontend | Vanilla TypeScript + Vite |
+| Time-Series Charts | uPlot |
+| Frontend | Vanilla TypeScript + Vite (multi-page) |
 | Bridge Server | Bun or Node.js |
 | UDP → WS Bridge | dgram (Node built-in) + ws |
 | Language | TypeScript (strict mode) |
@@ -30,30 +31,47 @@ Full details: `docs/VISION.md` and `docs/REQUIREMENTS.md`
 ├── docs/
 │   ├── VISION.md
 │   ├── REQUIREMENTS.md
-│   └── ARCHITECTURE.md           ← created by Claude
+│   └── ARCHITECTURE.md
 ├── bridge/
 │   ├── server.ts                 ← UDP → WebSocket Bridge
 │   └── package.json
+├── scripts/
+│   ├── send-test-udp.js          ← Single test UDP packet
+│   └── demo_simulation.py        ← Continuous demo simulation
 ├── visualizer/
+│   ├── index.html                ← 3D Visualizer page
+│   ├── scope.html                ← Scope (time-series) page
 │   ├── src/
-│   │   ├── main.ts
-│   │   ├── state/                ← Central state, DataSource interface
-│   │   ├── datasources/
-│   │   │   ├── SimulationSource.ts   ← WebSocket receiver
-│   │   │   └── ManualSource.ts       ← Generates state from Manual UI events
+│   │   ├── main.ts               ← Visualizer entry point
+│   │   ├── scope-main.ts         ← Scope page entry point
+│   │   ├── core/
+│   │   │   ├── config/           ← Load + validate collimator configuration
+│   │   │   ├── state/            ← Central state, DataSource interface
+│   │   │   ├── datasources/
+│   │   │   │   ├── SimulationSource.ts
+│   │   │   │   └── ManualSource.ts
+│   │   │   ├── constraints/      ← Constraint detection
+│   │   │   ├── geometry/         ← Projection, FLD, edge jump, field polygon
+│   │   │   └── persistence.ts    ← localStorage wrapper (beamscope: prefix)
 │   │   ├── scene/                ← Three.js scene, camera, controls
 │   │   ├── objects/              ← 3D objects: jaws, cone, detector, wedge, prefilter
-│   │   ├── geometry/             ← Projection calculations (FLD, edge jump, primary collimator)
 │   │   ├── bev/                  ← 2D Beam's Eye View
-│   │   ├── config/               ← Load + validate collimator configuration
+│   │   ├── scope/                ← Scope chart components (uPlot)
+│   │   │   ├── ScopeChart.ts     ← uPlot wrapper with zoom/pan
+│   │   │   ├── TraceRegistry.ts  ← Config → trace definitions
+│   │   │   ├── RingBuffer.ts     ← Circular buffer for time-series data
+│   │   │   ├── TraceSelector.ts  ← Trace visibility checkboxes
+│   │   │   ├── exportCsv.ts      ← CSV export
+│   │   │   └── traceColors.ts    ← Deterministic trace colors
 │   │   ├── ui/
 │   │   │   ├── ControlPanel.ts   ← Data source dropdown + status
-│   │   │   └── ManualControls.ts ← Schema-driven UI generator
-│   │   └── constraints/          ← Constraint detection and visualization
-│   ├── index.html
+│   │   │   ├── ManualControls.ts ← Schema-driven UI generator
+│   │   │   └── NavBar.ts         ← Page navigation (Visualization ↔ Scope)
+│   │   └── utils/                ← Shared utilities (moduleColor, etc.)
 │   └── package.json
 ├── configs/                      ← Example collimator configurations (JSON)
-│   └── example-collimator.json
+│   ├── example-collimator.json
+│   └── quad-jaw-v1.json
 └── README.md
 ```
 
@@ -63,9 +81,20 @@ Full details: `docs/VISION.md` and `docs/REQUIREMENTS.md`
 
 ```
 [Simulation]  UDP → Bridge → WebSocket ──┐
-[Manual UI]   Schema-driven Controls    ──├──► Central State ──► 3D + BEV
+[Manual UI]   Schema-driven Controls    ──├──► Central State ──► 3D + BEV + Scope
 [future]      Replay / File             ──┘
 ```
+
+### Multi-Page Architecture
+
+Two HTML entry points sharing the same core state and data sources:
+
+- **index.html** → `main.ts`: 3D visualization + BEV + manual controls
+- **scope.html** → `scope-main.ts`: Real-time time-series chart (uPlot)
+
+Navigation via `NavBar.ts`. User settings (data source, config, manual state,
+trace visibility, buffer duration) are persisted in localStorage via `persistence.ts`
+and survive full page navigations.
 
 All data sources implement the same `DataSource` interface and write into the
 central state. The visualization has no direct knowledge of any data source.
@@ -94,6 +123,7 @@ interface DataSource {
 - **Commits**: Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`)
 - **No direct push to main** – feature branches
 - **TypeScript strict mode** – no `any` without a comment
+- **Persistence**: use `persistence.ts` (`beamscope:` localStorage prefix) for cross-page state
 
 ---
 
@@ -189,10 +219,13 @@ clipping = intersection(leaf_field_detector, primary_projection_detector)
 ## Useful Commands
 
 ```bash
-cd bridge && bun run start          # Start bridge
-cd visualizer && bun run dev        # Visualizer (dev)
-node scripts/send-test-udp.js       # Send test UDP packet
-bun run validate-config configs/example-collimator.json
+cd bridge && bun run start              # Start bridge
+cd visualizer && bun run dev            # Visualizer (dev, both pages)
+cd visualizer && bun run typecheck      # TypeScript strict check
+cd visualizer && bun run test:run       # Run all tests (vitest)
+cd visualizer && bun run build          # Production build
+node scripts/send-test-udp.js           # Send single test UDP packet
+python3 scripts/demo_simulation.py      # Continuous demo simulation
 ```
 
 ---
