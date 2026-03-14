@@ -81,11 +81,16 @@ export class ControlPanel {
     }
   }
 
+  /** Programmatically select a source by id (updates dropdown, does NOT fire onChange). */
+  setSelectedId(id: string): void {
+    this.selectEl.value = id;
+  }
+
   private handleSourceChange(): void {
     const selectedId = this.selectEl.value;
     const source = this.sources.find((s) => s.id === selectedId);
     if (source && this.onSourceChange) {
-      // TODO: seed ManualSource with current state before activating
+      localStorage.setItem("beamscope:source", source.id);
       this.onSourceChange(source);
     }
   }

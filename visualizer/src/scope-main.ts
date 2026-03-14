@@ -104,6 +104,7 @@ async function scopeMain(): Promise<void> {
   if (sourceSelect) {
     sourceSelect.addEventListener("change", () => {
       const val = sourceSelect.value;
+      localStorage.setItem("beamscope:source", val);
       if (val === "simulation") {
         stateStore.setActiveSource(simulationSource);
       } else {
@@ -249,8 +250,19 @@ async function scopeMain(): Promise<void> {
     }
   });
 
-  // --- Activate default source (Simulation) ---
-  stateStore.setActiveSource(simulationSource);
+  // --- Activate data source (restore from localStorage or default to Simulation) ---
+  const savedSource = localStorage.getItem("beamscope:source");
+  if (savedSource === "manual") {
+    stateStore.setActiveSource(manualSource);
+    if (sourceSelect) sourceSelect.value = "manual";
+    if (statusEl) {
+      statusEl.textContent = "Manual";
+      statusEl.className = "connected";
+    }
+  } else {
+    stateStore.setActiveSource(simulationSource);
+    if (sourceSelect) sourceSelect.value = "simulation";
+  }
 
   // --- Test data generator (activated via ?demo query param) ---
   if (new URLSearchParams(window.location.search).has("demo")) {

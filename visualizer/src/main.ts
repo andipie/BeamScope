@@ -176,10 +176,17 @@ async function main(): Promise<void> {
     console.warn("[main] Default config not found — drag a collimator JSON to load one.");
   }
 
-  // --- Activate default data source (Manual) ---
-  stateStore.setActiveSource(manualSource);
-  controlPanel.setStatus("manual");
-  manualControls.setEnabled(true);
+  // --- Activate data source (restore from localStorage or default to Manual) ---
+  const savedSource = localStorage.getItem("beamscope:source");
+  if (savedSource === "simulation") {
+    stateStore.setActiveSource(simulationSource);
+    controlPanel.setSelectedId("simulation");
+    manualControls.setEnabled(false);
+  } else {
+    stateStore.setActiveSource(manualSource);
+    controlPanel.setStatus("manual");
+    manualControls.setEnabled(true);
+  }
 
   // --- Wire "Reset View" button (US-10) ---
   document.getElementById("reset-view-btn")?.addEventListener("click", () => {
