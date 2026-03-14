@@ -18,8 +18,6 @@ type ModuleObject = JawObject | WedgeObject | PrefilterObject;
  * - On config load: creates / recreates all scene objects
  * - On state update: calls update() on each object
  * - On config change: disposes old objects, creates new ones
- *
- * TODO: connect to StateStore subscription in main.ts
  */
 export class SceneUpdater {
   private readonly scene: THREE.Scene;

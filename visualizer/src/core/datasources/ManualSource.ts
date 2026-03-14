@@ -62,7 +62,6 @@ export class ManualSource implements DataSource {
 
   /** Update a top-level field (sid, collimator_rotation_deg). */
   setGlobalValue(key: keyof CollimatorState, value: number): void {
-    // TODO: implement type-safe update
     (this.state as unknown as Record<string, unknown>)[key] = value;
     if (this.active) this.emit();
   }

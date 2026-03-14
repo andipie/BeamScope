@@ -9,7 +9,6 @@ import { persistence } from "../core/persistence.js";
  *   #source-select  — <select> for data source switching
  *   #status-badge   — <span> showing connection status
  *
- * TODO: implement full event wiring and status management
  */
 export class ControlPanel {
   private readonly selectEl: HTMLSelectElement;

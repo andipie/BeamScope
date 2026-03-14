@@ -11,8 +11,6 @@ import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer
  * - Default lighting
  * - Animation loop (calls SceneUpdater on each frame if needed)
  * - "Reset View" functionality
- *
- * TODO: implement full setup and render loop
  */
 export class SceneManager {
   readonly scene: THREE.Scene;
