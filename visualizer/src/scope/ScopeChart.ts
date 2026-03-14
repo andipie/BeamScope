@@ -94,6 +94,12 @@ export class ScopeChart {
         min: latestT - windowDurationSec,
         max: latestT,
       });
+    } else {
+      // Force redraw by re-applying current X scale (uPlot skips repaint without setScale)
+      const xScale = this.plot.scales.x;
+      if (xScale?.min != null && xScale?.max != null) {
+        this.plot.setScale("x", { min: xScale.min, max: xScale.max });
+      }
     }
   }
 
