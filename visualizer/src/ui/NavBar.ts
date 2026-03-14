@@ -1,3 +1,5 @@
+import { persistence } from "../core/persistence.js";
+
 /**
  * Navigation bar for switching between BeamScope pages.
  *
@@ -6,14 +8,21 @@
  *   - Scope (scope.html / time-series page)
  *
  * The active page link is highlighted.
+ * Config parameter (?config=...) is carried across pages.
  */
 export function createNavBar(activePage: "visualization" | "scope"): HTMLElement {
   const nav = document.createElement("nav");
   nav.id = "navbar";
 
+  // Carry ?config= parameter across pages via URL param or persisted config
+  const urlConfig = new URLSearchParams(window.location.search).get("config");
+  const savedConfig = persistence.getString("config");
+  const configParam = urlConfig ?? savedConfig;
+  const suffix = configParam ? `?config=${encodeURIComponent(configParam)}` : "";
+
   const links: Array<{ label: string; href: string; page: "visualization" | "scope" }> = [
-    { label: "Visualization", href: "/", page: "visualization" },
-    { label: "Scope", href: "/scope.html", page: "scope" },
+    { label: "Visualization", href: `/${suffix}`, page: "visualization" },
+    { label: "Scope", href: `/scope.html${suffix}`, page: "scope" },
   ];
 
   for (const link of links) {

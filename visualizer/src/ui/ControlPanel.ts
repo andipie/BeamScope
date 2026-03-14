@@ -1,5 +1,6 @@
 import type { DataSource } from "../core/state/DataSource.js";
 import type { ConnectionStatus } from "../core/datasources/SimulationSource.js";
+import { persistence } from "../core/persistence.js";
 
 /**
  * Manages the data source dropdown and connection status badge in the UI.
@@ -90,7 +91,7 @@ export class ControlPanel {
     const selectedId = this.selectEl.value;
     const source = this.sources.find((s) => s.id === selectedId);
     if (source && this.onSourceChange) {
-      localStorage.setItem("beamscope:source", source.id);
+      persistence.setString("source", source.id);
       this.onSourceChange(source);
     }
   }

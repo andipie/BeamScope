@@ -9,6 +9,7 @@ import { stateStore } from "./core/state/StateStore.js";
 import { checkConstraints } from "./core/constraints/ConstraintChecker.js";
 import { ConstraintOverlay } from "./constraints/ConstraintOverlay.js";
 import { loadConfigFromUrl } from "./core/config/loader.js";
+import { persistence } from "./core/persistence.js";
 import { createNavBar } from "./ui/NavBar.js";
 import { AxisDataTable } from "./ui/AxisDataTable.js";
 
@@ -68,7 +69,10 @@ async function main(): Promise<void> {
   const controlPanel = new ControlPanel();
   controlPanel.registerSources([manualSource, simulationSource], (source) => {
     if (source.id === "manual") {
-      manualSource.seedState(stateStore.getState());
+      // Try persisted state first, fall back to current state
+      if (!manualSource.restorePersistedState()) {
+        manualSource.seedState(stateStore.getState());
+      }
       // Re-render controls with current state values (US-18 AC#2)
       const config = stateStore.getConfig();
       const mc = document.getElementById("manual-controls");
@@ -110,6 +114,10 @@ async function main(): Promise<void> {
           ? await (await import("./core/config/loader.js")).loadConfigFromFile(source)
           : await (await import("./core/config/loader.js")).loadConfigFromUrl((source as Response).url);
 
+      // Persist config path so other pages load the same config
+      if (source instanceof File) {
+        persistence.setString("config", source.name);
+      }
       stateStore.setConfig(config);
       sceneUpdater.onConfigLoaded(config);
       bevRenderer.onConfigLoaded(config);
@@ -150,16 +158,17 @@ async function main(): Promise<void> {
   });
 
   // --- Load default config ---
-  // Allow overriding the startup config via ?config=<name-or-path>, e.g.:
-  //   http://localhost:5173?config=quad-jaw-v1.json
-  //   http://localhost:5173?config=/configs/quad-jaw-v1.json
-  const configParam = new URLSearchParams(window.location.search).get("config");
+  // Priority: ?config= URL param > persisted config > default
+  const configParam = new URLSearchParams(window.location.search).get("config")
+    ?? persistence.getString("config");
   const defaultConfigUrl = configParam
     ? configParam.startsWith("/") ? configParam : `/configs/${configParam}`
     : "/configs/example-collimator.json";
 
   try {
     const config = await loadConfigFromUrl(defaultConfigUrl);
+    if (configParam) persistence.setString("config", configParam);
+    else persistence.remove("config");
     stateStore.setConfig(config);
     sceneUpdater.onConfigLoaded(config);
     bevRenderer.onConfigLoaded(config);
@@ -177,15 +186,25 @@ async function main(): Promise<void> {
   }
 
   // --- Activate data source (restore from localStorage or default to Manual) ---
-  const savedSource = localStorage.getItem("beamscope:source");
+  const savedSource = persistence.getString("source");
   if (savedSource === "simulation") {
     stateStore.setActiveSource(simulationSource);
     controlPanel.setSelectedId("simulation");
     manualControls.setEnabled(false);
   } else {
+    // Restore persisted manual control values, then activate → emits into stateStore
+    manualSource.restorePersistedState();
     stateStore.setActiveSource(manualSource);
     controlPanel.setStatus("manual");
     manualControls.setEnabled(true);
+    persistence.setString("source", "manual");
+
+    // Re-render controls now that stateStore has the restored values
+    const config = stateStore.getConfig();
+    const mc = document.getElementById("manual-controls");
+    if (config && mc) {
+      manualControls.render(mc, config, manualSource);
+    }
   }
 
   // --- Wire "Reset View" button (US-10) ---

@@ -1,5 +1,6 @@
 import "uplot/dist/uPlot.min.css";
 import { loadConfigFromUrl } from "./core/config/loader.js";
+import { persistence } from "./core/persistence.js";
 import { stateStore } from "./core/state/StateStore.js";
 import { SimulationSource } from "./core/datasources/SimulationSource.js";
 import { ManualSource } from "./core/datasources/ManualSource.js";
@@ -44,7 +45,7 @@ async function scopeMain(): Promise<void> {
   // --- Transport state ---
   let paused = false;
   let live = true;
-  let currentDurationSec = 60;
+  let currentDurationSec = persistence.get<number>("scope-duration") ?? 60;
 
   function updateLiveBadge(): void {
     if (liveBadge) {
@@ -104,7 +105,7 @@ async function scopeMain(): Promise<void> {
   if (sourceSelect) {
     sourceSelect.addEventListener("change", () => {
       const val = sourceSelect.value;
-      localStorage.setItem("beamscope:source", val);
+      persistence.setString("source", val);
       if (val === "simulation") {
         stateStore.setActiveSource(simulationSource);
       } else {
@@ -148,8 +149,12 @@ async function scopeMain(): Promise<void> {
 
   // --- Buffer duration dropdown ---
   if (bufferSelect) {
+    // Restore persisted selection
+    bufferSelect.value = String(currentDurationSec);
+
     bufferSelect.addEventListener("change", () => {
       currentDurationSec = parseInt(bufferSelect.value, 10);
+      persistence.set("scope-duration", currentDurationSec);
       if (ringBuffer) {
         ringBuffer.resize(currentDurationSec * SAMPLE_RATE_HZ);
         updateBufferInfo();
@@ -207,19 +212,23 @@ async function scopeMain(): Promise<void> {
       traceCount: traces.length,
     });
 
-    traceSelector.build(traces);
     scopeChart.init(traces);
+    traceSelector.build(traces);
     updateBufferInfo();
   };
 
   // --- Load default config ---
-  const configParam = new URLSearchParams(window.location.search).get("config");
+  // Priority: ?config= URL param > persisted config > default
+  const configParam = new URLSearchParams(window.location.search).get("config")
+    ?? persistence.getString("config");
   const defaultConfigUrl = configParam
     ? configParam.startsWith("/") ? configParam : `/configs/${configParam}`
     : "/configs/example-collimator.json";
 
   try {
     const config = await loadConfigFromUrl(defaultConfigUrl);
+    if (configParam) persistence.setString("config", configParam);
+    else persistence.remove("config");
     stateStore.setConfig(config);
     onConfigReady(config);
   } catch {
@@ -242,6 +251,7 @@ async function scopeMain(): Promise<void> {
       try {
         const { loadConfigFromFile } = await import("./core/config/loader.js");
         const config = await loadConfigFromFile(file);
+        persistence.setString("config", file.name);
         stateStore.setConfig(config);
         onConfigReady(config);
       } catch (err) {
@@ -251,7 +261,7 @@ async function scopeMain(): Promise<void> {
   });
 
   // --- Activate data source (restore from localStorage or default to Simulation) ---
-  const savedSource = localStorage.getItem("beamscope:source");
+  const savedSource = persistence.getString("source");
   if (savedSource === "manual") {
     stateStore.setActiveSource(manualSource);
     if (sourceSelect) sourceSelect.value = "manual";

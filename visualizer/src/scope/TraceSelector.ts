@@ -1,12 +1,16 @@
 import type { TraceDefinition } from "./TraceRegistry.js";
 import { traceColor } from "./traceColors.js";
+import { persistence } from "../core/persistence.js";
 
 export type TraceVisibilityCallback = (visibleTraceIds: Set<string>) => void;
+
+const PERSIST_KEY = "scope-traces";
 
 /**
  * Sidebar UI: checkbox groups for trace selection, grouped by module.
  *
  * Follows the same <details>/<summary> accordion pattern as ManualControls.
+ * Persists visibility selection to localStorage.
  * US-25
  */
 export class TraceSelector {
@@ -22,7 +26,16 @@ export class TraceSelector {
   /** Build the checkbox tree from trace definitions. */
   build(traces: readonly TraceDefinition[]): void {
     this.container.innerHTML = "";
+
+    // Restore persisted trace selection (only keep IDs that exist in current traces)
+    const savedIds = persistence.get<string[]>(PERSIST_KEY);
+    const validIds = new Set(traces.map((t) => t.id));
     this.visibleTraces.clear();
+    if (savedIds) {
+      for (const id of savedIds) {
+        if (validIds.has(id)) this.visibleTraces.add(id);
+      }
+    }
 
     // Group traces by moduleId (preserving order)
     const groups = new Map<string, TraceDefinition[]>();
@@ -52,6 +65,7 @@ export class TraceSelector {
         e.preventDefault();
         for (const t of moduleTraces) this.visibleTraces.add(t.id);
         this.updateCheckboxes(details);
+        this.persistVisibility();
         this.onChange(new Set(this.visibleTraces));
       });
 
@@ -62,6 +76,7 @@ export class TraceSelector {
         e.preventDefault();
         for (const t of moduleTraces) this.visibleTraces.delete(t.id);
         this.updateCheckboxes(details);
+        this.persistVisibility();
         this.onChange(new Set(this.visibleTraces));
       });
 
@@ -80,12 +95,14 @@ export class TraceSelector {
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.dataset.traceId = t.id;
+        cb.checked = this.visibleTraces.has(t.id);
         cb.addEventListener("change", () => {
           if (cb.checked) {
             this.visibleTraces.add(t.id);
           } else {
             this.visibleTraces.delete(t.id);
           }
+          this.persistVisibility();
           this.onChange(new Set(this.visibleTraces));
         });
 
@@ -114,6 +131,11 @@ export class TraceSelector {
       details.appendChild(list);
       this.container.appendChild(details);
     }
+
+    // Notify chart of restored trace visibility
+    if (this.visibleTraces.size > 0) {
+      this.onChange(new Set(this.visibleTraces));
+    }
   }
 
   /** Returns the set of currently visible trace IDs. */
@@ -127,5 +149,9 @@ export class TraceSelector {
     for (const cb of cbs) {
       cb.checked = this.visibleTraces.has(cb.dataset.traceId ?? "");
     }
+  }
+
+  private persistVisibility(): void {
+    persistence.set(PERSIST_KEY, [...this.visibleTraces]);
   }
 }
