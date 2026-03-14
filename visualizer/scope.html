@@ -232,6 +232,64 @@
         border-color: #5a2e2e;
       }
 
+      .toolbar-sep {
+        width: 1px;
+        height: 16px;
+        background: #333;
+        align-self: center;
+        flex-shrink: 0;
+      }
+
+      .toolbar-spacer {
+        flex: 1;
+      }
+
+      .toolbar-btn {
+        background: #2a2a2a;
+        border: 1px solid #333;
+        color: #ccc;
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: 11px;
+        cursor: pointer;
+        line-height: 18px;
+        flex-shrink: 0;
+      }
+
+      .toolbar-btn:hover {
+        background: #333;
+        color: #fff;
+      }
+
+      .toolbar-btn:active {
+        background: #444;
+      }
+
+      .toolbar-info {
+        font-size: 10px;
+        color: #666;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .live-badge {
+        font-size: 9px;
+        font-weight: 700;
+        color: #4caf50;
+        background: #1e3a1e;
+        border: 1px solid #2e5a2e;
+        border-radius: 3px;
+        padding: 1px 5px;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+      }
+
+      .live-badge.inactive {
+        color: #666;
+        background: #1a1a1a;
+        border-color: #333;
+      }
+
       /* Chart area */
       #scope-chart-area {
         flex: 1;
@@ -298,6 +356,28 @@
               <option value="simulation">Simulation</option>
             </select>
             <span id="scope-status">Waiting...</span>
+
+            <span class="toolbar-sep"></span>
+
+            <label for="scope-buffer-select">Buffer</label>
+            <select id="scope-buffer-select">
+              <option value="10">10 s</option>
+              <option value="30">30 s</option>
+              <option value="60" selected>60 s</option>
+              <option value="120">2 min</option>
+              <option value="300">5 min</option>
+            </select>
+            <span id="scope-buffer-info" class="toolbar-info">Buffer: 0s / 60s, ~0.0 MB</span>
+
+            <span class="toolbar-sep"></span>
+
+            <button id="scope-btn-pause" class="toolbar-btn" title="Pause / Resume">&#9208;</button>
+            <button id="scope-btn-clear" class="toolbar-btn" title="Clear buffer">&#10227;</button>
+            <span id="scope-live-badge" class="live-badge">LIVE</span>
+
+            <span class="toolbar-spacer"></span>
+
+            <button id="scope-btn-export" class="toolbar-btn" title="Export CSV">CSV &#8595;</button>
           </div>
           <div id="scope-chart-area"></div>
         </div>

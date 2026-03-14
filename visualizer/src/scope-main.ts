@@ -8,15 +8,16 @@ import { TraceRegistry } from "./scope/TraceRegistry.js";
 import { RingBuffer } from "./scope/RingBuffer.js";
 import { ScopeChart } from "./scope/ScopeChart.js";
 import { TraceSelector } from "./scope/TraceSelector.js";
+import { exportScopeCsv } from "./scope/exportCsv.js";
 import type { CollimatorConfig } from "./core/config/types.js";
 
-/** 60 seconds at ~50 Hz = 3000 samples. */
-const BUFFER_CAPACITY = 3000;
+const SAMPLE_RATE_HZ = 50;
 
 /**
  * Scope page entry point.
  *
  * US-25: Real-time time-series chart with selectable traces.
+ * US-26: Configurable buffer, transport controls, zoom/pan, CSV export.
  */
 async function scopeMain(): Promise<void> {
   // --- NavBar ---
@@ -29,9 +30,33 @@ async function scopeMain(): Promise<void> {
   const statusEl = document.getElementById("scope-status");
   const chartEl = document.getElementById("scope-chart-area");
   const selectorEl = document.getElementById("trace-selector");
+  const bufferSelect = document.getElementById("scope-buffer-select") as HTMLSelectElement | null;
+  const bufferInfoEl = document.getElementById("scope-buffer-info");
+  const btnPause = document.getElementById("scope-btn-pause");
+  const btnClear = document.getElementById("scope-btn-clear");
+  const liveBadge = document.getElementById("scope-live-badge");
+  const btnExport = document.getElementById("scope-btn-export");
 
   if (!chartEl || !selectorEl) {
     throw new Error("Required DOM elements not found. Check scope.html.");
+  }
+
+  // --- Transport state ---
+  let paused = false;
+  let live = true;
+  let currentDurationSec = 60;
+
+  function updateLiveBadge(): void {
+    if (liveBadge) {
+      liveBadge.classList.toggle("inactive", !live);
+    }
+  }
+
+  function updateBufferInfo(): void {
+    if (!ringBuffer || !bufferInfoEl) return;
+    const filledSec = (ringBuffer.length / SAMPLE_RATE_HZ).toFixed(0);
+    const mb = (ringBuffer.getMemoryBytes() / 1048576).toFixed(1);
+    bufferInfoEl.textContent = `Buffer: ${filledSec}s / ${currentDurationSec}s, ~${mb} MB`;
   }
 
   // --- Data sources ---
@@ -55,12 +80,22 @@ async function scopeMain(): Promise<void> {
   // --- Scope components ---
   const traceRegistry = new TraceRegistry();
   let ringBuffer: RingBuffer | null = null;
-  const scopeChart = new ScopeChart(chartEl);
+
+  const scopeChart = new ScopeChart(chartEl, {
+    onExitLive: () => {
+      live = false;
+      updateLiveBadge();
+    },
+    onResetToLive: () => {
+      live = true;
+      updateLiveBadge();
+    },
+  });
 
   const traceSelector = new TraceSelector(selectorEl, (visibleIds) => {
     scopeChart.setVisibleTraces(visibleIds);
     if (ringBuffer) {
-      scopeChart.setData(ringBuffer.getData());
+      scopeChart.setData(ringBuffer.getData(), live, currentDurationSec);
     }
   });
 
@@ -82,7 +117,9 @@ async function scopeMain(): Promise<void> {
     });
   }
 
-  // --- State subscription ---
+  // --- rAF-throttled render loop ---
+  let dirty = false;
+
   stateStore.subscribe((state) => {
     const config = stateStore.getConfig();
     if (!config || !ringBuffer) return;
@@ -90,9 +127,74 @@ async function scopeMain(): Promise<void> {
     const values = traceRegistry.extractAll(state, config);
     const traceIds = traceRegistry.getTraces().map((t) => t.id);
     const numericValues = traceIds.map((id) => values[id] ?? 0);
+
+    // Always append (even when paused — buffer records in background)
     ringBuffer.append(state.timestamp / 1000, numericValues);
-    scopeChart.setData(ringBuffer.getData());
+    dirty = true;
   });
+
+  function renderLoop(): void {
+    if (dirty && !paused) {
+      dirty = false;
+      if (ringBuffer) {
+        scopeChart.setData(ringBuffer.getData(), live, currentDurationSec);
+        updateBufferInfo();
+      }
+    }
+    requestAnimationFrame(renderLoop);
+  }
+  requestAnimationFrame(renderLoop);
+
+  // --- Buffer duration dropdown ---
+  if (bufferSelect) {
+    bufferSelect.addEventListener("change", () => {
+      currentDurationSec = parseInt(bufferSelect.value, 10);
+      if (ringBuffer) {
+        ringBuffer.resize(currentDurationSec * SAMPLE_RATE_HZ);
+        updateBufferInfo();
+        if (live) {
+          scopeChart.setData(ringBuffer.getData(), true, currentDurationSec);
+        }
+      }
+    });
+  }
+
+  // --- Transport buttons ---
+  if (btnPause) {
+    btnPause.addEventListener("click", () => {
+      paused = !paused;
+      btnPause.textContent = paused ? "\u25B6" : "\u23F8";
+      if (!paused) {
+        live = true;
+        updateLiveBadge();
+        // Force immediate chart update on resume
+        if (ringBuffer) {
+          scopeChart.setData(ringBuffer.getData(), true, currentDurationSec);
+        }
+      }
+    });
+  }
+
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      if (ringBuffer) {
+        ringBuffer.clear();
+        live = true;
+        updateLiveBadge();
+        scopeChart.setData(ringBuffer.getData(), true, currentDurationSec);
+        updateBufferInfo();
+      }
+    });
+  }
+
+  // --- Export button ---
+  if (btnExport) {
+    btnExport.addEventListener("click", () => {
+      if (ringBuffer) {
+        exportScopeCsv(ringBuffer.getData(), traceRegistry.getTraces());
+      }
+    });
+  }
 
   // --- Config loading helper ---
   const onConfigReady = (config: CollimatorConfig): void => {
@@ -100,12 +202,13 @@ async function scopeMain(): Promise<void> {
     const traces = traceRegistry.getTraces();
 
     ringBuffer = new RingBuffer({
-      capacity: BUFFER_CAPACITY,
+      capacity: currentDurationSec * SAMPLE_RATE_HZ,
       traceCount: traces.length,
     });
 
     traceSelector.build(traces);
     scopeChart.init(traces);
+    updateBufferInfo();
   };
 
   // --- Load default config ---
@@ -166,7 +269,7 @@ async function scopeMain(): Promise<void> {
         },
       });
       frame++;
-    }, 20); // 50 Hz
+    }, 20);
   }
 }
 
